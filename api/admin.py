@@ -6,8 +6,3 @@ from django.contrib import admin
 from api.models import *
 
 # Register your models here.
-admin.site.register(Experiment, ExperimentAdmin)
-admin.site.register(Run, RunAdmin)
-admin.site.register(Bledata, BledataAdmin)
-admin.site.register(Event, EventAdmin)
-admin.site.register(Profile, ProfileAdmin)

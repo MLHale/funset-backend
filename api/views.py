@@ -38,6 +38,12 @@ from rest_framework.authentication import *
 from api.serializers import *
 from api.pagination import *
 
+def home(request):
+   """
+   Send requests to / to the ember.js clientside app
+   """
+   return render_to_response('ember/index.html',
+               {}, RequestContext(request))
 
 class Register(APIView):
     permission_classes = (AllowAny,)
