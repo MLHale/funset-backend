@@ -38,12 +38,49 @@ from rest_framework.authentication import *
 from api.serializers import *
 from api.pagination import *
 
+
 def home(request):
-   """
-   Send requests to / to the ember.js clientside app
-   """
-   return render_to_response('ember/index.html',
-               {}, RequestContext(request))
+    """
+    Send requests to / to the ember.js clientside app
+    """
+    return render_to_response('ember/index.html', {}, RequestContext(request))
+
+
+class TermViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint that allows users to be viewed.
+    """
+    resource_name = 'terms'
+    queryset = Term.objects.all()
+    serializer_class = TermSerializer
+
+
+class GeneViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint that allows users to be viewed.
+    """
+    resource_name = 'genes'
+    queryset = Gene.objects.all()
+    serializer_class = GeneSerializer
+
+
+class EnrichmentViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint that allows users to be viewed.
+    """
+    resource_name = 'enrichments'
+    queryset = Enrichment.objects.all()
+    serializer_class = EnrichmentSerializer
+
+
+class ExperimentViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint that allows users to be viewed.
+    """
+    resource_name = 'experiments'
+    queryset = Experiment.objects.all()
+    serializer_class = ExperimentSerializer
+
 
 class Register(APIView):
     permission_classes = (AllowAny,)

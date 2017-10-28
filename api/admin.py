@@ -1,8 +1,7 @@
 from django.contrib import admin
 
-#if ENVIRONMENT == 'PROD':
-#	from api.models import *
-#else:
 from api.models import *
 
-# Register your models here.
+# Register models here.
+admin.site.register(Term, TermAdmin)
+admin.site.register(Gene, GeneAdmin)

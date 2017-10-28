@@ -10,6 +10,10 @@ from django.views.decorators.csrf import csrf_exempt
 
 #REST API routes
 router = routers.DefaultRouter(trailing_slash=False)
+router.register(r'terms', views.TermViewSet)
+router.register(r'genes', views.GeneViewSet)
+router.register(r'experiments', views.ExperimentViewSet)
+router.register(r'enrichments', views.EnrichmentViewSet)
 
 #REST API
 urlpatterns = [
