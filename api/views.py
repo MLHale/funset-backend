@@ -23,7 +23,7 @@ from api.models import *
 
 #REST API
 from rest_framework import viewsets, filters
-from django.http import Http404
+from django.http import Http404, HttpResponse
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -37,6 +37,9 @@ from rest_framework.authentication import *
 #from filters.mixins import *
 from api.serializers import *
 from api.pagination import *
+from pathway_viz_backend import settings
+import math
+from django.core.cache import cache
 
 
 def home(request):
@@ -45,14 +48,43 @@ def home(request):
     """
     return render_to_response('ember/index.html', {}, RequestContext(request))
 
+import time
+from django.core import serializers
+
 
 class TermViewSet(viewsets.ModelViewSet):
     """
     API endpoint that allows users to be viewed.
     """
     resource_name = 'terms'
-    queryset = Term.objects.all()
+    queryset = Term.objects.order_by('termid')
     serializer_class = TermSerializer
+    permission_classes = []
+    authentication_classes = []
+
+    def get_queryset(self):
+        queryset = Term.objects.order_by('termid')
+        # Set up eager loading to avoid N+1 selects
+        queryset = self.get_serializer_class().setup_eager_loading(queryset)
+        return queryset
+
+    @list_route()
+    def get_pages(self, request):
+        objs = Term.objects.order_by('termid').count()
+        return Response({'count': objs, 'pages': int(math.ceil(float(objs)/settings.REST_FRAMEWORK['PAGE_SIZE']))})
+
+    # def list(self, request, *args, **kwargs):
+    #     queryset = self.filter_queryset(self.get_queryset())
+    #
+    #     page = self.paginate_queryset(queryset)
+    #     if page is not None:
+    #         serializer = self.get_serializer(page, many=True)
+    #         return cache.get_or_set('term_list_paginated',self.get_paginated_response(serializer.data))
+    #
+    #     serializer = self.get_serializer(queryset, many=True)
+    #     term_response = cache.get_or_set('term_list', Response(serializer.data))
+    #     return term_response
+
 
 
 class GeneViewSet(viewsets.ModelViewSet):

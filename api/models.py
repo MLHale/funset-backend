@@ -6,6 +6,16 @@ from django.contrib import admin
 
 from rest_framework_json_api import serializers
 
+class EagerLoadingMixin:
+    @classmethod
+    def setup_eager_loading(cls, queryset):
+        if hasattr(cls, "_SELECT_RELATED_FIELDS"):
+            queryset = queryset.select_related(*cls._SELECT_RELATED_FIELDS)
+        if hasattr(cls, "_PREFETCH_RELATED_FIELDS"):
+            queryset = queryset.prefetch_related(*cls._PREFETCH_RELATED_FIELDS)
+        return queryset
+
+
 
 class Term(models.Model):
     termid = models.CharField(max_length=100, blank=False, unique=True)
@@ -18,8 +28,11 @@ class Term(models.Model):
     def __str__(self):
         return str(self.termid) + ' - ' + str(self.name)
 
+    class JSONAPIMeta:
+        resource_name = "terms"
 
-class TermSerializer(serializers.ModelSerializer):
+class TermSerializer(serializers.ModelSerializer, EagerLoadingMixin):
+    _PREFETCH_RELATED_FIELDS = ['parents']
 
     class Meta:
         model = Term
