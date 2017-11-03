@@ -24,6 +24,8 @@ class Term(models.Model):
     description = models.CharField(max_length=10000, blank=True)
     synonym = models.CharField(max_length=1000, blank=True)
     parents = models.ManyToManyField('self', related_name='children', blank=True)
+    semanticdissimilarityx = models.FloatField(blank=True)
+    semanticdissimilarityy = models.FloatField(blank=True)
 
     def __str__(self):
         return str(self.termid) + ' - ' + str(self.name)
