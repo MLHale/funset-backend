@@ -52,7 +52,7 @@ if __name__ == '__main__':
             record['synonym'] = ''
 
         newterm = Term( termid=record['id'], name=record['name'],
-                        description=record['description'], namespace=record['namespace'] )
+                        description=record['description'], namespace=record['namespace'], semanticdissimilarityx=0, semanticdissimilarityy=0 )
         newterm.save()
     print '...done'
     print 'Forming many-to-many mapping...'
