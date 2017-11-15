@@ -142,7 +142,7 @@ STATICFILES_DIRS = [
 ]
 
 REST_FRAMEWORK = {
-    'PAGE_SIZE': 50,
+    'PAGE_SIZE': 40,
     'EXCEPTION_HANDLER': 'rest_framework_json_api.exceptions.exception_handler',
     'DEFAULT_PAGINATION_CLASS':
         'rest_framework_json_api.pagination.PageNumberPagination',

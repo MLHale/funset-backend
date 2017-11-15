@@ -50,6 +50,7 @@ def home(request):
 
 import time
 from django.core import serializers
+import subprocess
 
 
 class TermViewSet(viewsets.ModelViewSet):
@@ -73,6 +74,11 @@ class TermViewSet(viewsets.ModelViewSet):
         objs = Term.objects.order_by('termid').count()
         return Response({'count': objs, 'pages': int(math.ceil(float(objs)/settings.REST_FRAMEWORK['PAGE_SIZE']))})
 
+    @list_route()
+    def test_query(self, request):
+        process = subprocess.call(['/GOUtil/./enrich', '-a', '/GOUtil/data/annHuman20171106.txt', '-e', '/GOUtil/data/edgeList.txt', '-t', '/GOUtil/data/target.txt', '-b', '/GOUtil/data/background.txt', '-o', '/GOUtil/output.txt'])
+        f = open('/GOUtil/output.txt', 'r')
+        return Response({'output': f.read()})
     # def list(self, request, *args, **kwargs):
     #     queryset = self.filter_queryset(self.get_queryset())
     #
