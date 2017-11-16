@@ -49,7 +49,7 @@ import subprocess
 from urllib import unquote
 class TermViewSet(viewsets.ModelViewSet):
     """
-    API endpoint that allows users to be viewed.
+    API endpoint that handles requests for terms.
     """
     resource_name = 'terms'
     queryset = Term.objects.order_by('termid')
@@ -93,7 +93,7 @@ class TermViewSet(viewsets.ModelViewSet):
 
 class GeneViewSet(viewsets.ModelViewSet):
     """
-    API endpoint that allows users to be viewed.
+    API endpoint that handles requests for gene data.
     """
     resource_name = 'genes'
     queryset = Gene.objects.all()
@@ -102,7 +102,7 @@ class GeneViewSet(viewsets.ModelViewSet):
 
 class EnrichmentViewSet(viewsets.ModelViewSet):
     """
-    API endpoint that allows users to be viewed.
+    API endpoint that handles requests for enrichment terms.
     """
     resource_name = 'enrichments'
     queryset = Enrichment.objects.all()
@@ -138,7 +138,7 @@ class LoadThread(Thread):
 
 class RunViewSet(viewsets.ModelViewSet):
     """
-    API endpoint that allows users to be viewed.
+    API endpoint that loads overall Runs (user invocations of the enrichment util).
     """
     resource_name = 'runs'
     queryset = Run.objects.all()

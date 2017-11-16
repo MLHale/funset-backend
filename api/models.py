@@ -95,7 +95,7 @@ class Run(models.Model):
 
 
 class RunSerializer(serializers.ModelSerializer):
-
+    _PREFETCH_RELATED_FIELDS = ['enrichments']
     class Meta:
         model = Run
         fields = "__all__"
