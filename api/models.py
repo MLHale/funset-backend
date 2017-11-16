@@ -85,7 +85,7 @@ class EnrichmentAdmin(admin.ModelAdmin):
     list_display = ('id', 'term', 'pvalue', 'level')
 
 
-class Experiment(models.Model):
+class Run(models.Model):
     name = models.CharField(max_length=10000, blank=True)
     enrichments = models.ManyToManyField(Enrichment, related_name='children', blank=True)
 
@@ -93,12 +93,12 @@ class Experiment(models.Model):
         return str(self.id) + ' - ' + str(self.name)
 
 
-class ExperimentSerializer(serializers.ModelSerializer):
+class RunSerializer(serializers.ModelSerializer):
 
     class Meta:
-        model = Experiment
+        model = Run
         fields = "__all__"
 
 
-class ExperimentAdmin(admin.ModelAdmin):
+class RunAdmin(admin.ModelAdmin):
     list_display = ('id', 'name')

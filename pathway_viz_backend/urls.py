@@ -23,7 +23,7 @@ urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^api-auth/', include('rest_framework.urls', namespace='rest_framework')),
     url(r'^api/v1/', include(api_urls)),
-    url(r'^', views.home),
+    # url(r'^', views.home),
     #token authentication mechanism to allow registered users to access pathway_viz routes
     url(r'^api-auth-token/', obtain_auth_token),
 ]

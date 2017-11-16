@@ -22,6 +22,7 @@ from django.contrib.auth.models import *
 from api.models import *
 
 #REST API
+from rest_framework_json_api import parsers
 from rest_framework import viewsets, filters
 from django.http import Http404, HttpResponse
 from rest_framework.views import APIView
@@ -41,18 +42,11 @@ from pathway_viz_backend import settings
 import math
 from django.core.cache import cache
 
-
-def home(request):
-    """
-    Send requests to / to the ember.js clientside app
-    """
-    return render_to_response('ember/index.html', {}, RequestContext(request))
-
 import time
 from django.core import serializers
 import subprocess
 
-
+from urllib import unquote
 class TermViewSet(viewsets.ModelViewSet):
     """
     API endpoint that allows users to be viewed.
@@ -66,7 +60,16 @@ class TermViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = Term.objects.order_by('termid')
         # Set up eager loading to avoid N+1 selects
-        queryset = self.get_serializer_class().setup_eager_loading(queryset)
+
+        queryterms = self.request.query_params.get('termids')
+
+        if queryterms is not None:
+            queryterms = unquote(queryterms).split(',')
+            print queryterms
+            print 'filtering'
+            queryset = self.get_serializer_class().setup_eager_loading(Term.objects.filter(termid__in=queryterms).order_by('termid'))
+        else:
+            queryset = self.get_serializer_class().setup_eager_loading(Term.objects.order_by('termid'))
         return queryset
 
     @list_route()
@@ -74,11 +77,6 @@ class TermViewSet(viewsets.ModelViewSet):
         objs = Term.objects.order_by('termid').count()
         return Response({'count': objs, 'pages': int(math.ceil(float(objs)/settings.REST_FRAMEWORK['PAGE_SIZE']))})
 
-    @list_route()
-    def test_query(self, request):
-        process = subprocess.call(['/GOUtil/./enrich', '-a', '/GOUtil/data/annHuman20171106.txt', '-e', '/GOUtil/data/edgeList.txt', '-t', '/GOUtil/data/target.txt', '-b', '/GOUtil/data/background.txt', '-o', '/GOUtil/output.txt'])
-        f = open('/GOUtil/output.txt', 'r')
-        return Response({'output': f.read()})
     # def list(self, request, *args, **kwargs):
     #     queryset = self.filter_queryset(self.get_queryset())
     #
@@ -111,13 +109,21 @@ class EnrichmentViewSet(viewsets.ModelViewSet):
     serializer_class = EnrichmentSerializer
 
 
-class ExperimentViewSet(viewsets.ModelViewSet):
+class RunViewSet(viewsets.ModelViewSet):
     """
     API endpoint that allows users to be viewed.
     """
-    resource_name = 'experiments'
-    queryset = Experiment.objects.all()
-    serializer_class = ExperimentSerializer
+    resource_name = 'runs'
+    queryset = Run.objects.all()
+    serializer_class = RunSerializer
+
+    @list_route()
+    def invoke(self, request):
+        genes = request.POST.get('genes')
+        print genes
+        process = subprocess.call(['/GOUtil/./enrich', '-a', '/GOUtil/data/annHuman20171106.txt', '-e', '/GOUtil/data/edgeList.txt', '-t', '/GOUtil/data/target.txt', '-b', '/GOUtil/data/background.txt', '-o', '/GOUtil/output.txt'])
+        f = open('/GOUtil/output.txt', 'r')
+        return Response({'output': f.read()})
 
 
 class Register(APIView):

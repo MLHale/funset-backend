@@ -12,7 +12,7 @@ from django.views.decorators.csrf import csrf_exempt
 router = routers.DefaultRouter(trailing_slash=False)
 router.register(r'terms', views.TermViewSet)
 router.register(r'genes', views.GeneViewSet)
-router.register(r'experiments', views.ExperimentViewSet)
+router.register(r'runs', views.RunViewSet)
 router.register(r'enrichments', views.EnrichmentViewSet)
 
 #REST API
