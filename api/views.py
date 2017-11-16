@@ -111,6 +111,30 @@ class EnrichmentViewSet(viewsets.ModelViewSet):
 import uuid
 import os
 from ipware.ip import get_ip
+from threading import Thread
+import Queue
+
+class LoadThread(Thread):
+    def __init__(self, queue, enrichmentrun):
+        super(LoadThread, self).__init__()
+        self.queue = queue
+        self.enrichmentrun = enrichmentrun
+
+    def run(self):
+        while True:
+            enrichmentinfo = self.queue.get()
+            if enrichmentinfo != '\n':
+                tokens = enrichmentinfo.split('\t')
+                try:
+                    term = Term.objects.get(termid=tokens[0])
+                    enrichment = Enrichment(term=term,pvalue=tokens[1],level=tokens[2].replace('\n',''))
+                    enrichment.save()
+                    self.enrichmentrun.enrichments.add(enrichment)
+                except Term.DoesNotExist:
+                    print 'term %s was not in the database'% tokens[0]
+            #signals to queue job is done
+            self.queue.task_done()
+
 
 class RunViewSet(viewsets.ModelViewSet):
     """
@@ -141,17 +165,21 @@ class RunViewSet(viewsets.ModelViewSet):
             outputfile = open(outputfile_name, 'r')
             new_run = Run(name=get_ip(request))
             new_run.save()
+
+            #Multi-threaded loader to load in all of the enrichment terms (currently loads all)
+            queue = Queue.Queue()
+            start = time.time()
+            threads = []
+
+            for i in range(20):
+                t = LoadThread(queue, new_run)
+                t.setDaemon(True)
+                t.start()
             for line in outputfile:
-                #structure should be: term p-value rank
-                if line != '\n':
-                    tokens = line.split('\t')
-                    try:
-                        term = Term.objects.get(termid=tokens[0])
-                        enrichment = Enrichment(term=term,pvalue=tokens[1],level=tokens[2].replace('\n',''))
-                        enrichment.save()
-                        new_run.enrichments.add(enrichment)
-                    except Term.DoesNotExist:
-                        print 'term %s not loaded in the database', tokens[0]
+                queue.put(line)
+
+            queue.join()
+            print "Loading time: %s" % (time.time()-start)
 
             serializer = RunSerializer(new_run)
             #cleanup temp files
