@@ -94,7 +94,7 @@ class Run(models.Model):
         return str(self.id) + ' - ' + str(self.name)+ ' - ' + str(self.created)
 
 
-class RunSerializer(serializers.ModelSerializer):
+class RunSerializer(serializers.ModelSerializer, EagerLoadingMixin):
     _PREFETCH_RELATED_FIELDS = ['enrichments']
     class Meta:
         model = Run
