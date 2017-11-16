@@ -87,10 +87,11 @@ class EnrichmentAdmin(admin.ModelAdmin):
 
 class Run(models.Model):
     name = models.CharField(max_length=10000, blank=True)
-    enrichments = models.ManyToManyField(Enrichment, related_name='children', blank=True)
+    enrichments = models.ManyToManyField(Enrichment, related_name='enrichments', blank=True)
+    created = models.DateField(auto_now_add=True)
 
     def __str__(self):
-        return str(self.id) + ' - ' + str(self.name)
+        return str(self.id) + ' - ' + str(self.name)+ ' - ' + str(self.created)
 
 
 class RunSerializer(serializers.ModelSerializer):
@@ -101,4 +102,4 @@ class RunSerializer(serializers.ModelSerializer):
 
 
 class RunAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name')
+    list_display = ('id', 'name', 'created')

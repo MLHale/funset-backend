@@ -41,7 +41,7 @@ from api.pagination import *
 from pathway_viz_backend import settings
 import math
 from django.core.cache import cache
-
+import bleach
 import time
 from django.core import serializers
 import subprocess
@@ -108,6 +108,9 @@ class EnrichmentViewSet(viewsets.ModelViewSet):
     queryset = Enrichment.objects.all()
     serializer_class = EnrichmentSerializer
 
+import uuid
+import os
+from ipware.ip import get_ip
 
 class RunViewSet(viewsets.ModelViewSet):
     """
@@ -119,11 +122,46 @@ class RunViewSet(viewsets.ModelViewSet):
 
     @list_route()
     def invoke(self, request):
-        genes = request.POST.get('genes')
-        print genes
-        process = subprocess.call(['/GOUtil/./enrich', '-a', '/GOUtil/data/annHuman20171106.txt', '-e', '/GOUtil/data/edgeList.txt', '-t', '/GOUtil/data/target.txt', '-b', '/GOUtil/data/background.txt', '-o', '/GOUtil/output.txt'])
-        f = open('/GOUtil/output.txt', 'r')
-        return Response({'output': f.read()})
+        #need to add error handling and resilence
+        genes = self.request.query_params.get('genes')
+        if genes is not None:
+            genes = bleach.clean(genes)
+            genes = unquote(genes).replace(',', '\n')
+
+            #temp files to be used by the GOUtil
+            tmp_uuid = str(uuid.uuid4())
+            genefile_name = '/GOUtil/data/inputgenes' + tmp_uuid + '.txt'
+            outputfile_name = '/GOUtil/data/output' + tmp_uuid + '.txt'
+            genefile = open(genefile_name, 'w+')
+
+            genefile.write(genes)
+            genefile.close()
+            #invoke enrichment util
+            process = subprocess.call(['/GOUtil/./enrich', '-a', '/GOUtil/data/annHuman20171106.txt', '-e', '/GOUtil/data/edgeList.txt', '-t', genefile_name, '-b', '/GOUtil/data/background.txt', '-o', outputfile_name])
+            outputfile = open(outputfile_name, 'r')
+            new_run = Run(name=get_ip(request))
+            new_run.save()
+            for line in outputfile:
+                #structure should be: term p-value rank
+                if line != '\n':
+                    tokens = line.split('\t')
+                    try:
+                        term = Term.objects.get(termid=tokens[0])
+                        enrichment = Enrichment(term=term,pvalue=tokens[1],level=tokens[2].replace('\n',''))
+                        enrichment.save()
+                        new_run.enrichments.add(enrichment)
+                    except Term.DoesNotExist:
+                        print 'term %s not loaded in the database', tokens[0]
+
+            serializer = RunSerializer(new_run)
+            #cleanup temp files
+            outputfile.close()
+
+            os.remove(genefile_name)
+            os.remove(outputfile_name)
+            return Response(serializer.data)
+        else:
+            return Response({},status=500)
 
 
 class Register(APIView):
@@ -151,7 +189,6 @@ class Register(APIView):
         newuser = User.objects.create_user(email=email, username=username, password=password)
         newprofile = Profile(user=newuser, gender=gender, age=age, educationlevel=educationlevel, city=city, state=state)
         newprofile.save()
-
         return Response({'status': 'success', 'userid': newuser.id, 'profile': newprofile.id})
 
 class Session(APIView):
