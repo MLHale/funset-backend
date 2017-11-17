@@ -148,7 +148,8 @@ class RunViewSet(viewsets.ModelViewSet):
     def invoke(self, request):
         #need to add error handling and resilence
         genes = self.request.query_params.get('genes')
-        if genes is not None:
+        pvalue = self.request.query_params.get('pvalue')
+        if genes is not None and pvalue is not None:
             genes = bleach.clean(genes)
             genes = unquote(genes).replace(',', '\n')
 
@@ -171,12 +172,17 @@ class RunViewSet(viewsets.ModelViewSet):
             start = time.time()
             threads = []
 
-            for i in range(20):
+            for i in range(5):
                 t = LoadThread(queue, new_run)
                 t.setDaemon(True)
                 t.start()
             for line in outputfile:
-                queue.put(line)
+                if float(line.split('\t')[1]) < float(pvalue):
+                    print line.split('\t')[1]
+                    print "Loading term %s, with p-value: %s" % (line.split('\t')[0], line.split('\t')[1])
+                    queue.put(line)
+                else:
+                    print "Ignoring term %s, with p-value: %s" % (line.split('\t')[0], line.split('\t')[1])
 
             queue.join()
             print "Loading time: %s" % (time.time()-start)
@@ -188,6 +194,7 @@ class RunViewSet(viewsets.ModelViewSet):
             os.remove(genefile_name)
             os.remove(outputfile_name)
             return Response(serializer.data)
+            # return Response({'runid': new_run.id})
         else:
             return Response({},status=500)
 
