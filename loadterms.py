@@ -35,35 +35,36 @@ if __name__ == '__main__':
             inputfile = arg
 
     print 'Loading terms from:', inputfile, 'using Pronto...'
-    ont = pronto.Ontology(inputfile)
-    print '...done'
-    print ont.__len__(), 'Terms Loaded.'
-    print 'Adding terms to web app DB...'
-    for term in ont:
-        record = {'id': term.id, 'name': term.name, 'description': term.desc}
-        try:
-            record['namespace'] = term.other['namespace']
-        except AttributeError:
-            record['namespace'] = ''
+    if inputfile != '':
+        ont = pronto.Ontology(inputfile)
+        print '...done'
+        print ont.__len__(), 'Terms Loaded.'
+        print 'Adding terms to web app DB...'
+        for term in ont:
+            record = {'id': term.id, 'name': term.name, 'description': term.desc}
+            try:
+                record['namespace'] = term.other['namespace']
+            except AttributeError:
+                record['namespace'] = ''
 
-        try:
-            record['synonym'] = term.synonyms
-        except AttributeError:
-            record['synonym'] = ''
+            try:
+                record['synonym'] = term.synonyms
+            except AttributeError:
+                record['synonym'] = ''
 
-        newterm = Term( termid=record['id'], name=record['name'],
-                        description=record['description'], namespace=record['namespace'], semanticdissimilarityx=0, semanticdissimilarityy=0 )
-        newterm.save()
-    print '...done'
-    print 'Forming many-to-many mapping...'
-    for term in ont:
-        if term.parents:
-            record = Term.objects.get(termid=term.id)
-        for parent in term.parents:
-            # find parent in Django ORM and link
-            parent_record = Term.objects.get(termid=parent.id)
-            record.parents.add(parent_record)
-    print '...done'
+            newterm = Term( termid=record['id'], name=record['name'],
+                            description=record['description'], namespace=record['namespace'], semanticdissimilarityx=0, semanticdissimilarityy=0 )
+            newterm.save()
+        print '...done'
+        print 'Forming many-to-many mapping...'
+        for term in ont:
+            if term.parents:
+                record = Term.objects.get(termid=term.id)
+            for parent in term.parents:
+                # find parent in Django ORM and link
+                parent_record = Term.objects.get(termid=parent.id)
+                record.parents.add(parent_record)
+        print '...done'
     # print
     # l.name = 'Berlin'
     # l.save()
