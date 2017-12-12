@@ -162,7 +162,7 @@ class RunViewSet(viewsets.ModelViewSet):
             genefile.write(genes)
             genefile.close()
             #invoke enrichment util
-            process = subprocess.call(['/GOUtil/./enrich', '-a', '/GOUtil/data/annHuman20171106_noIEA_noND_noRCA.txt', '-e', '/GOUtil/data/edgeList20171106.txt', '-t', genefile_name, '-b', '/GOUtil/data/background.txt', '-o', outputfile_name])
+            process = subprocess.call(['/GOUtil/./enrich', '-a', '/GOUtil/data/annHuman20171106_noIEA_noND_noRCA.txt', '-e', '/GOUtil/data/edgeList20171106.txt', '-t', genefile_name, '-b', '/GOUtil/data/background.txt', '-o', outputfile_name, '-p', pvalue])
             outputfile = open(outputfile_name, 'r')
             new_run = Run(name=get_ip(request))
             new_run.save()
