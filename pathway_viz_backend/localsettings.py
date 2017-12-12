@@ -15,5 +15,6 @@ DATABASES = {
         'USER': 'postgres',
         'HOST': 'db',
         'PORT': 5432,
+        'CONN_MAX_AGE' : 0,
     }
 }
