@@ -127,7 +127,7 @@ class LoadThread(Thread):
                 tokens = enrichmentinfo.split('\t')
                 try:
                     term = Term.objects.get(termid=tokens[0])
-                    enrichment = Enrichment(term=term,pvalue=tokens[1],level=tokens[2].replace('\n',''))
+                    enrichment = Enrichment(term=term,pvalue=tokens[2],level=tokens[3].replace('\n',''))
                     enrichment.save()
                     self.enrichmentrun.enrichments.add(enrichment)
                 except Term.DoesNotExist:
@@ -177,12 +177,13 @@ class RunViewSet(viewsets.ModelViewSet):
                 t.setDaemon(True)
                 t.start()
             for line in outputfile:
-                if float(line.split('\t')[1]) < float(pvalue):
-                    print line.split('\t')[1]
-                    print "Loading term %s, with p-value: %s" % (line.split('\t')[0], line.split('\t')[1])
-                    queue.put(line)
-                else:
-                    print "Ignoring term %s, with p-value: %s" % (line.split('\t')[0], line.split('\t')[1])
+                queue.put(line)
+                # if float(line.split('\t')[2]) < float(pvalue):
+                #     print line.split('\t')[2]
+                #     print "Loading term %s, with p-value: %s" % (line.split('\t')[0], line.split('\t')[2])
+                #     queue.put(line)
+                # else:
+                #     print "Ignoring term %s, with p-value: %s" % (line.split('\t')[0], line.split('\t')[2])
 
             queue.join()
             print "Loading time: %s" % (time.time()-start)
