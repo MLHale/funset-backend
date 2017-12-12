@@ -18,3 +18,6 @@ DATABASES = {
         'CONN_MAX_AGE' : 0,
     }
 }
+
+ALLOWED_HOSTS = ['137.48.191.135','localhost', 'django']
+ENVIRONMENT = "PROD"
