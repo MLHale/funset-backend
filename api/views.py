@@ -203,17 +203,21 @@ class RunViewSet(viewsets.ModelViewSet):
         genes = self.request.query_params.get('genes')
         pvalue = self.request.query_params.get('pvalue')
         clusters = self.request.query_params.get('clusters')
-        if genes is not None and pvalue is not None:
+        organism = self.request.query_params.get('organism')
+        if genes is not None and pvalue is not None and clusters is not None:
+            if organism not in ['hsa','gga','bta','cfa','mmu','rno','cel','ath','dme','sce','eco','dre']:
+                return Response({},status=500)
+
             genes = bleach.clean(genes)
             genes = unquote(genes).replace(',', '\n')
 
             #temp files to be used by the GOUtil
             tmp_uuid = str(uuid.uuid4())
-            genefile_name = 'useruploads/inputgenes--' + tmp_uuid + '.txt'
-            enrich_outputfile_name = 'useruploads/enrichment--' + tmp_uuid + '.txt'
-            sim_outputfile_name = 'useruploads/funsim--' + tmp_uuid + '.txt'
-            semsim_outputfile_name = 'useruploads/semsim--' + tmp_uuid + '.txt'
-            clusters_outputfile_name = 'useruploads/clusters--' + tmp_uuid + '.txt'
+            genefile_name = 'useruploads/inputgenes-' + tmp_uuid + '.txt'
+            enrich_outputfile_name = 'useruploads/enrichment-' + tmp_uuid + '.txt'
+            sim_outputfile_name = 'useruploads/funsim-' + tmp_uuid + '.txt'
+            semsim_outputfile_name = 'useruploads/semsim-' + tmp_uuid + '.txt'
+            clusters_outputfile_name = 'useruploads/clusters-' + tmp_uuid + '.txt'
             genefile = open(genefile_name, 'w+')
 
             genefile.write(genes)
@@ -221,11 +225,15 @@ class RunViewSet(viewsets.ModelViewSet):
 
             new_run = Run(name=tmp_uuid,ip=get_ip(request))
             new_run.save()
-            ###### Enrichment Pipeline ######
+            base_dir = '/GOUtildata/'
+            annotation_file_name = base_dir+'ann.'+organism+'.bp.txt'
+            edgelist_file_name = base_dir+'edgeList.'+'bp.txt'
+            background_file_name = base_dir+'background.txt'
 
+            ###### Enrichment Pipeline ######
             #invoke enrichment util to compute enrichments
             e_start = time.time()
-            subprocess.call(['/GOUtil/./enrich', '-a', '/GOUtil/data/annHuman20171106_noIEA_noND_noRCA.txt', '-e', '/GOUtil/data/edgeList20171106.txt', '-t', genefile_name, '-b', '/GOUtil/data/background.txt', '-o', enrich_outputfile_name, '-p', pvalue])
+            subprocess.call(['/GOUtil/./enrich', '-a', annotation_file_name, '-e', edgelist_file_name, '-t', genefile_name, '-b', background_file_name, '-o', enrich_outputfile_name, '-p', pvalue])
             print "Enrich run time %s" % (time.time()-e_start)
 
             enrich_outputfile = open(enrich_outputfile_name, 'r')
@@ -243,7 +251,7 @@ class RunViewSet(viewsets.ModelViewSet):
 
             fun_sim_start = time.time()
             #invoke funSim util to compute semantic similarity
-            subprocess.call(['/GOUtil/./funSim', '-a', '/GOUtil/data/annHuman20171106_noIEA_noND_noRCA.txt', '-e', '/GOUtil/data/edgeList20171106.txt', '-o', sim_outputfile_name, '-t',"Lin", '-f', enrich_outputfile_name])
+            subprocess.call(['/GOUtil/./funSim', '-a', annotation_file_name, '-e', edgelist_file_name, '-o', sim_outputfile_name, '-t',"Lin", '-f', enrich_outputfile_name])
             print "FunSim run time %s" % (time.time()-fun_sim_start)
 
 
