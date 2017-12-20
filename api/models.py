@@ -46,11 +46,11 @@ class TermAdmin(admin.ModelAdmin):
 
 
 class Gene(models.Model):
-    geneid = models.CharField(max_length=100, blank=False)
+    geneid = models.CharField(max_length=100, blank=False, unique=True)
     name = models.CharField(max_length=10000, blank=True)
 
     def __str__(self):
-        return str(self.geneid) + ' - ' + str(self.name)
+        return str(self.geneid)
 
 
 class GeneSerializer(serializers.ModelSerializer):
@@ -76,15 +76,9 @@ class Run(models.Model):
         return str(self.id) + ' - ' + str(self.name)+ ' - ' + str(self.created)
 
 
-class RunSerializer(serializers.ModelSerializer, EagerLoadingMixin):
-    _PREFETCH_RELATED_FIELDS = ['enrichments']
-    class Meta:
-        model = Run
-        fields = "__all__"
-
-
 class RunAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'created')
+
 
 class Enrichment(models.Model):
     run = models.ForeignKey(Run, on_delete=models.CASCADE, blank=False, related_name="enrichments")
@@ -95,7 +89,7 @@ class Enrichment(models.Model):
     semanticdissimilarityy = models.FloatField(blank=True, default=0)
     cluster = models.IntegerField(blank=False, default=0)
     medoid = models.BooleanField(blank=True, default=False)
-    genes = models.ManyToManyField(Term, related_name='enrichments', blank=True)
+    genes = models.ManyToManyField(Gene, related_name='enrichments', blank=True)
 
     def __str__(self):
         return str(self.term) + ' - ' + str(self.pvalue) + ' - ' + str(self.level)
@@ -105,4 +99,12 @@ class EnrichmentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Enrichment
+        fields = "__all__"
+
+
+class RunSerializer(serializers.ModelSerializer):
+    # _PREFETCH_RELATED_FIELDS = ['enrichments']
+    enrichments = EnrichmentSerializer(many=True)
+    class Meta:
+        model = Run
         fields = "__all__"

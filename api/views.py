@@ -129,6 +129,10 @@ class LoadEnrichmentsThread(Thread):
                     term = Term.objects.get(termid=tokens[0])
                     enrichment = Enrichment(term=term,run=self.enrichmentrun,pvalue=float(tokens[2]),level=float(tokens[3].replace('\n','')))
                     enrichment.save()
+                    for token in tokens[4].split(' '):
+                        gene = Gene.objects.get_or_create(geneid=token)[0]
+                        enrichment.genes.add(gene)
+                    enrichment.save()
                 except Term.DoesNotExist:
                     print 'term %s was not in the database'% tokens[0]
                 except IndexError:
@@ -220,38 +224,38 @@ class RunViewSet(viewsets.ModelViewSet):
             ###### Enrichment Pipeline ######
 
             #invoke enrichment util to compute enrichments
+            e_start = time.time()
             subprocess.call(['/GOUtil/./enrich', '-a', '/GOUtil/data/annHuman20171106_noIEA_noND_noRCA.txt', '-e', '/GOUtil/data/edgeList20171106.txt', '-t', genefile_name, '-b', '/GOUtil/data/background.txt', '-o', enrich_outputfile_name, '-p', pvalue])
+            print "Enrich run time %s" % (time.time()-e_start)
 
             enrich_outputfile = open(enrich_outputfile_name, 'r')
 
+            #Multi-threaded loader to load in all of the enrichment terms
             enrich_queue = Queue.Queue()
-            for i in range(5):
+            for i in range(10):
                 t = LoadEnrichmentsThread(enrich_queue, new_run)
                 t.setDaemon(True)
                 t.start()
             for line in enrich_outputfile:
                 enrich_queue.put(line)
 
-            enrich_queue.join()
 
+
+            fun_sim_start = time.time()
             #invoke funSim util to compute semantic similarity
             subprocess.call(['/GOUtil/./funSim', '-a', '/GOUtil/data/annHuman20171106_noIEA_noND_noRCA.txt', '-e', '/GOUtil/data/edgeList20171106.txt', '-o', sim_outputfile_name, '-t',"Lin", '-f', enrich_outputfile_name])
+            print "FunSim run time %s" % (time.time()-fun_sim_start)
 
+
+            mds_sim_start = time.time()
             #compute x, y coordinates for enriched terms
             subprocess.call(['python','/GOUtil/mdsSemSim.py', sim_outputfile_name, semsim_outputfile_name])
+            print "MDS run time %s" % (time.time()-mds_sim_start)
 
-            #spectral clustering
-            subprocess.call(['python','/GOUtil/spectralClustering.py', semsim_outputfile_name, clusters_outputfile_name, clusters])
-
-
+            #Multi-threaded loader to load in all of the enrichment term coordinates
             semsim_outputfile = open(semsim_outputfile_name, 'r')
-            clusters_outputfile = open(clusters_outputfile_name, 'r')
-
-
-            #Multi-threaded loader to load in all of the enrichment terms (currently loads all)
+            enrich_queue.join()
             coords_queue = Queue.Queue()
-            cluster_queue = Queue.Queue()
-
             for i in range(5):
                 t = LoadCoordsThread(coords_queue, new_run)
                 t.setDaemon(True)
@@ -259,7 +263,17 @@ class RunViewSet(viewsets.ModelViewSet):
             for line in semsim_outputfile:
                 coords_queue.put(line)
 
+            #spectral clustering
+            spectral_start = time.time()
+            subprocess.call(['python','/GOUtil/spectralClustering.py', semsim_outputfile_name, clusters_outputfile_name, clusters])
+            print "Spectral run time %s" % (time.time()-spectral_start)
+
+
+            clusters_outputfile = open(clusters_outputfile_name, 'r')
+
+            #Multi-threaded loader to do the clustering and update the enrichment records
             coords_queue.join()
+            cluster_queue = Queue.Queue()
             for i in range(5):
                 t = LoadClustersThread(cluster_queue, new_run)
                 t.setDaemon(True)
