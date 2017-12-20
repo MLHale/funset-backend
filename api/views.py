@@ -209,17 +209,17 @@ class RunViewSet(viewsets.ModelViewSet):
 
             #temp files to be used by the GOUtil
             tmp_uuid = str(uuid.uuid4())
-            genefile_name = 'useruploads/inputgenes' + tmp_uuid + '.txt'
-            enrich_outputfile_name = 'useruploads/enrichment' + tmp_uuid + '.txt'
-            sim_outputfile_name = 'useruploads/funsim' + tmp_uuid + '.txt'
-            semsim_outputfile_name = 'useruploads/semsim' + tmp_uuid + '.txt'
-            clusters_outputfile_name = 'useruploads/clusters' + tmp_uuid + '.txt'
+            genefile_name = 'useruploads/inputgenes--' + tmp_uuid + '.txt'
+            enrich_outputfile_name = 'useruploads/enrichment--' + tmp_uuid + '.txt'
+            sim_outputfile_name = 'useruploads/funsim--' + tmp_uuid + '.txt'
+            semsim_outputfile_name = 'useruploads/semsim--' + tmp_uuid + '.txt'
+            clusters_outputfile_name = 'useruploads/clusters--' + tmp_uuid + '.txt'
             genefile = open(genefile_name, 'w+')
 
             genefile.write(genes)
             genefile.close()
 
-            new_run = Run(name=get_ip(request))
+            new_run = Run(name=tmp_uuid,ip=get_ip(request))
             new_run.save()
             ###### Enrichment Pipeline ######
 

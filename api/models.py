@@ -71,9 +71,10 @@ class EnrichmentAdmin(admin.ModelAdmin):
 class Run(models.Model):
     name = models.CharField(max_length=10000, blank=True)
     created = models.DateField(auto_now_add=True)
+    ip = models.CharField(max_length=1000, blank=True, default="127.0.0.1")
 
     def __str__(self):
-        return str(self.id) + ' - ' + str(self.name)+ ' - ' + str(self.created)
+        return str(self.id) + ' - ' + str(self.ip) +' - ' + str(self.name)+ ' - ' + str(self.created)
 
 
 class RunAdmin(admin.ModelAdmin):
