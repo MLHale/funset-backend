@@ -178,7 +178,7 @@ class LoadClustersThread(Thread):
                 try:
                     enrichment = Enrichment.objects.get(run=self.enrichmentrun,term__termid=tokens[0])
                     enrichment.cluster = int(tokens[1])
-                    enrichment.medoid = bool(tokens[2])
+                    enrichment.medoid = 'True'==tokens[2]
                     enrichment.save()
                 except Enrichment.DoesNotExist:
                     print 'term %s was not in the database'% tokens[0]
@@ -198,120 +198,121 @@ class RunViewSet(viewsets.ModelViewSet):
 
     @list_route()
     def invoke(self, request):
-        #need to add error handling and resilence
-        start = time.time()
-        genes = self.request.query_params.get('genes')
-        pvalue = self.request.query_params.get('pvalue')
-        clusters = self.request.query_params.get('clusters')
-        organism = self.request.query_params.get('organism')
-        if genes is not None and pvalue is not None and clusters is not None:
-            if organism not in ['hsa','gga','bta','cfa','mmu','rno','cel','ath','dme','sce','eco','dre'] and int(clusters)>=1:
-                return Response({},status=500)
-
-            genes = bleach.clean(genes)
-            genes = unquote(genes).replace(',', '\n')
-
-            #temp files to be used by the GOUtil
-            tmp_uuid = str(uuid.uuid4())
-            genefile_name = 'useruploads/inputgenes-' + tmp_uuid + '.txt'
-            enrich_outputfile_name = 'useruploads/enrichment-' + tmp_uuid + '.txt'
-            sim_outputfile_name = 'useruploads/funsim-' + tmp_uuid + '.txt'
-            semsim_outputfile_name = 'useruploads/semsim-' + tmp_uuid + '.txt'
-            clusters_outputfile_name = 'useruploads/clusters-' + tmp_uuid + '.txt'
-            genefile = open(genefile_name, 'w+')
-
-            genefile.write(genes)
-            genefile.close()
-
-            new_run = Run(name=tmp_uuid,ip=get_ip(request))
-            new_run.save()
-            base_dir = '/GOUtildata/'
-            annotation_file_name = base_dir+'ann.'+organism+'.bp.txt'
-            edgelist_file_name = base_dir+'edgeList.'+'bp.txt'
-            background_file_name = base_dir+'background.txt'
-
-            ###### Enrichment Pipeline ######
-            #invoke enrichment util to compute enrichments
-            e_start = time.time()
-            subprocess.call(['/GOUtil/./enrich', '-a', annotation_file_name, '-e', edgelist_file_name, '-t', genefile_name, '-b', background_file_name, '-o', enrich_outputfile_name, '-p', pvalue])
-            print "Enrich run time %s" % (time.time()-e_start)
-
-            try:
-                enrich_outputfile = open(enrich_outputfile_name, 'r')
-            except IOError:
-                print "Error no enrichment file."
-                return Response({'error': 'Enrichment analysis failed for these Genes and Organism.'},status=500)
-            #Multi-threaded loader to load in all of the enrichment terms
-            enrich_queue = Queue.Queue()
-            for i in range(10):
-                t = LoadEnrichmentsThread(enrich_queue, new_run)
-                t.setDaemon(True)
-                t.start()
-            for line in enrich_outputfile:
-                enrich_queue.put(line)
-
-
-
-            fun_sim_start = time.time()
-            #invoke funSim util to compute semantic similarity
-            subprocess.call(['/GOUtil/./funSim', '-a', annotation_file_name, '-e', edgelist_file_name, '-o', sim_outputfile_name, '-t',"Lin", '-f', enrich_outputfile_name])
-            print "FunSim run time %s" % (time.time()-fun_sim_start)
-
-
-            mds_sim_start = time.time()
-            #compute x, y coordinates for enriched terms
-            subprocess.call(['python','/GOUtil/mdsSemSim.py', sim_outputfile_name, semsim_outputfile_name])
-            print "MDS run time %s" % (time.time()-mds_sim_start)
-
-            #Multi-threaded loader to load in all of the enrichment term coordinates
-            try:
-                semsim_outputfile = open(semsim_outputfile_name, 'r')
-            except IOError:
-                print "Error No MDS file"
-                return Response({'error': 'Semantic Similarity Computation Failed for these Genes and Organism.'},status=500)
-            enrich_queue.join()
-            coords_queue = Queue.Queue()
-            for i in range(5):
-                t = LoadCoordsThread(coords_queue, new_run)
-                t.setDaemon(True)
-                t.start()
-            for line in semsim_outputfile:
-                coords_queue.put(line)
-
-            #spectral clustering
-            spectral_start = time.time()
-            subprocess.call(['python','/GOUtil/spectralClustering.py', semsim_outputfile_name, clusters_outputfile_name, clusters])
-            print "Spectral run time %s" % (time.time()-spectral_start)
-
-            try:
-                clusters_outputfile = open(clusters_outputfile_name, 'r')
-            except IOError:
-                print "Error no clusters exist"
-                return Response({'error': 'No clusters found for these Genes and Organism.'},status=500)
-            #Multi-threaded loader to do the clustering and update the enrichment records
-            coords_queue.join()
-            cluster_queue = Queue.Queue()
-            for i in range(5):
-                t = LoadClustersThread(cluster_queue, new_run)
-                t.setDaemon(True)
-                t.start()
-            for line in clusters_outputfile:
-                cluster_queue.put(line)
-
-            cluster_queue.join()
-            print "Loading time: %s" % (time.time()-start)
-
-            serializer = RunSerializer(new_run)
-            #cleanup temp files
-            enrich_outputfile.close()
-            semsim_outputfile.close()
-            clusters_outputfile.close()
-            # os.remove(genefile_name)
-            # os.remove(enrich_outputfile_name)
-            return Response(serializer.data)
-            # return Response({'runid': new_run.id})
-        else:
-            return Response({},status=500)
+        return Response({"type":"runs","id":"70","attributes":{"name":"dfd6f708-c71b-442e-9424-80559d99849d","created":"2017-12-20","ip":"172.20.0.1"},"relationships":{"enrichments":{"data":[{"type":"Enrichment","id":"3647"},{"type":"Enrichment","id":"3646"},{"type":"Enrichment","id":"3645"},{"type":"Enrichment","id":"3644"},{"type":"Enrichment","id":"3643"},{"type":"Enrichment","id":"3642"},{"type":"Enrichment","id":"3641"},{"type":"Enrichment","id":"3640"},{"type":"Enrichment","id":"3639"},{"type":"Enrichment","id":"3638"},{"type":"Enrichment","id":"3637"},{"type":"Enrichment","id":"3636"},{"type":"Enrichment","id":"3635"},{"type":"Enrichment","id":"3634"},{"type":"Enrichment","id":"3633"},{"type":"Enrichment","id":"3632"},{"type":"Enrichment","id":"3631"},{"type":"Enrichment","id":"3630"},{"type":"Enrichment","id":"3629"},{"type":"Enrichment","id":"3628"},{"type":"Enrichment","id":"3627"},{"type":"Enrichment","id":"3626"},{"type":"Enrichment","id":"3625"},{"type":"Enrichment","id":"3624"},{"type":"Enrichment","id":"3623"},{"type":"Enrichment","id":"3622"},{"type":"Enrichment","id":"3621"},{"type":"Enrichment","id":"3620"},{"type":"Enrichment","id":"3619"},{"type":"Enrichment","id":"3618"},{"type":"Enrichment","id":"3617"},{"type":"Enrichment","id":"3616"},{"type":"Enrichment","id":"3615"},{"type":"Enrichment","id":"3614"},{"type":"Enrichment","id":"3613"},{"type":"Enrichment","id":"3612"},{"type":"Enrichment","id":"3611"},{"type":"Enrichment","id":"3610"},{"type":"Enrichment","id":"3609"},{"type":"Enrichment","id":"3608"},{"type":"Enrichment","id":"3607"},{"type":"Enrichment","id":"3606"},{"type":"Enrichment","id":"3605"},{"type":"Enrichment","id":"3604"},{"type":"Enrichment","id":"3603"},{"type":"Enrichment","id":"3602"},{"type":"Enrichment","id":"3601"},{"type":"Enrichment","id":"3600"},{"type":"Enrichment","id":"3599"},{"type":"Enrichment","id":"3598"},{"type":"Enrichment","id":"3597"},{"type":"Enrichment","id":"3596"},{"type":"Enrichment","id":"3595"},{"type":"Enrichment","id":"3594"},{"type":"Enrichment","id":"3593"},{"type":"Enrichment","id":"3592"},{"type":"Enrichment","id":"3591"},{"type":"Enrichment","id":"3590"},{"type":"Enrichment","id":"3589"},{"type":"Enrichment","id":"3588"},{"type":"Enrichment","id":"3587"},{"type":"Enrichment","id":"3586"},{"type":"Enrichment","id":"3585"},{"type":"Enrichment","id":"3584"},{"type":"Enrichment","id":"3583"},{"type":"Enrichment","id":"3582"},{"type":"Enrichment","id":"3581"},{"type":"Enrichment","id":"3580"},{"type":"Enrichment","id":"3579"},{"type":"Enrichment","id":"3578"},{"type":"Enrichment","id":"3577"},{"type":"Enrichment","id":"3576"},{"type":"Enrichment","id":"3575"},{"type":"Enrichment","id":"3574"},{"type":"Enrichment","id":"3573"},{"type":"Enrichment","id":"3572"},{"type":"Enrichment","id":"3571"},{"type":"Enrichment","id":"3570"},{"type":"Enrichment","id":"3569"},{"type":"Enrichment","id":"3568"},{"type":"Enrichment","id":"3567"},{"type":"Enrichment","id":"3566"},{"type":"Enrichment","id":"3565"},{"type":"Enrichment","id":"3564"},{"type":"Enrichment","id":"3563"},{"type":"Enrichment","id":"3562"},{"type":"Enrichment","id":"3561"},{"type":"Enrichment","id":"3560"},{"type":"Enrichment","id":"3559"},{"type":"Enrichment","id":"3558"},{"type":"Enrichment","id":"3557"},{"type":"Enrichment","id":"3556"},{"type":"Enrichment","id":"3555"},{"type":"Enrichment","id":"3554"},{"type":"Enrichment","id":"3553"},{"type":"Enrichment","id":"3552"},{"type":"Enrichment","id":"3533"},{"type":"Enrichment","id":"3551"},{"type":"Enrichment","id":"3550"},{"type":"Enrichment","id":"3549"},{"type":"Enrichment","id":"3548"},{"type":"Enrichment","id":"3547"},{"type":"Enrichment","id":"3546"},{"type":"Enrichment","id":"3545"},{"type":"Enrichment","id":"3544"},{"type":"Enrichment","id":"3543"},{"type":"Enrichment","id":"3542"},{"type":"Enrichment","id":"3541"},{"type":"Enrichment","id":"3540"},{"type":"Enrichment","id":"3539"},{"type":"Enrichment","id":"3538"},{"type":"Enrichment","id":"3537"},{"type":"Enrichment","id":"3534"},{"type":"Enrichment","id":"3536"},{"type":"Enrichment","id":"3535"},{"type":"Enrichment","id":"3532"},{"type":"Enrichment","id":"3531"},{"type":"Enrichment","id":"3530"},{"type":"Enrichment","id":"3529"}]}}})
+        # #need to add error handling and resilence
+        # start = time.time()
+        # genes = self.request.query_params.get('genes')
+        # pvalue = self.request.query_params.get('pvalue')
+        # clusters = self.request.query_params.get('clusters')
+        # organism = self.request.query_params.get('organism')
+        # if genes is not None and pvalue is not None and clusters is not None:
+        #     if organism not in ['hsa','gga','bta','cfa','mmu','rno','cel','ath','dme','sce','eco','dre'] and int(clusters)>=1:
+        #         return Response({},status=500)
+        #
+        #     genes = bleach.clean(genes)
+        #     genes = unquote(genes).replace(',', '\n')
+        #
+        #     #temp files to be used by the GOUtil
+        #     tmp_uuid = str(uuid.uuid4())
+        #     genefile_name = 'useruploads/inputgenes-' + tmp_uuid + '.txt'
+        #     enrich_outputfile_name = 'useruploads/enrichment-' + tmp_uuid + '.txt'
+        #     sim_outputfile_name = 'useruploads/funsim-' + tmp_uuid + '.txt'
+        #     semsim_outputfile_name = 'useruploads/semsim-' + tmp_uuid + '.txt'
+        #     clusters_outputfile_name = 'useruploads/clusters-' + tmp_uuid + '.txt'
+        #     genefile = open(genefile_name, 'w+')
+        #
+        #     genefile.write(genes)
+        #     genefile.close()
+        #
+        #     new_run = Run(name=tmp_uuid,ip=get_ip(request))
+        #     new_run.save()
+        #     base_dir = '/GOUtildata/'
+        #     annotation_file_name = base_dir+'ann.'+organism+'.bp.txt'
+        #     edgelist_file_name = base_dir+'edgeList.'+'bp.txt'
+        #     background_file_name = base_dir+'background.txt'
+        #
+        #     ###### Enrichment Pipeline ######
+        #     #invoke enrichment util to compute enrichments
+        #     e_start = time.time()
+        #     subprocess.call(['/GOUtil/./enrich', '-a', annotation_file_name, '-e', edgelist_file_name, '-t', genefile_name, '-b', background_file_name, '-o', enrich_outputfile_name, '-p', pvalue])
+        #     print "Enrich run time %s" % (time.time()-e_start)
+        #
+        #     try:
+        #         enrich_outputfile = open(enrich_outputfile_name, 'r')
+        #     except IOError:
+        #         print "Error no enrichment file."
+        #         return Response({'error': 'Enrichment analysis failed for these Genes and Organism.'},status=500)
+        #     #Multi-threaded loader to load in all of the enrichment terms
+        #     enrich_queue = Queue.Queue()
+        #     for i in range(10):
+        #         t = LoadEnrichmentsThread(enrich_queue, new_run)
+        #         t.setDaemon(True)
+        #         t.start()
+        #     for line in enrich_outputfile:
+        #         enrich_queue.put(line)
+        #
+        #
+        #
+        #     fun_sim_start = time.time()
+        #     #invoke funSim util to compute semantic similarity
+        #     subprocess.call(['/GOUtil/./funSim', '-a', annotation_file_name, '-e', edgelist_file_name, '-o', sim_outputfile_name, '-t',"Lin", '-f', enrich_outputfile_name])
+        #     print "FunSim run time %s" % (time.time()-fun_sim_start)
+        #
+        #
+        #     mds_sim_start = time.time()
+        #     #compute x, y coordinates for enriched terms
+        #     subprocess.call(['python','/GOUtil/mdsSemSim.py', sim_outputfile_name, semsim_outputfile_name])
+        #     print "MDS run time %s" % (time.time()-mds_sim_start)
+        #
+        #     #Multi-threaded loader to load in all of the enrichment term coordinates
+        #     try:
+        #         semsim_outputfile = open(semsim_outputfile_name, 'r')
+        #     except IOError:
+        #         print "Error No MDS file"
+        #         return Response({'error': 'Semantic Similarity Computation Failed for these Genes and Organism.'},status=500)
+        #     enrich_queue.join()
+        #     coords_queue = Queue.Queue()
+        #     for i in range(5):
+        #         t = LoadCoordsThread(coords_queue, new_run)
+        #         t.setDaemon(True)
+        #         t.start()
+        #     for line in semsim_outputfile:
+        #         coords_queue.put(line)
+        #
+        #     #spectral clustering
+        #     spectral_start = time.time()
+        #     subprocess.call(['python','/GOUtil/spectralClustering.py', semsim_outputfile_name, clusters_outputfile_name, clusters])
+        #     print "Spectral run time %s" % (time.time()-spectral_start)
+        #
+        #     try:
+        #         clusters_outputfile = open(clusters_outputfile_name, 'r')
+        #     except IOError:
+        #         print "Error no clusters exist"
+        #         return Response({'error': 'No clusters found for these Genes and Organism.'},status=500)
+        #     #Multi-threaded loader to do the clustering and update the enrichment records
+        #     coords_queue.join()
+        #     cluster_queue = Queue.Queue()
+        #     for i in range(5):
+        #         t = LoadClustersThread(cluster_queue, new_run)
+        #         t.setDaemon(True)
+        #         t.start()
+        #     for line in clusters_outputfile:
+        #         cluster_queue.put(line)
+        #
+        #     cluster_queue.join()
+        #     print "Loading time: %s" % (time.time()-start)
+        #
+        #     serializer = RunSerializer(new_run)
+        #     #cleanup temp files
+        #     enrich_outputfile.close()
+        #     semsim_outputfile.close()
+        #     clusters_outputfile.close()
+        #     # os.remove(genefile_name)
+        #     # os.remove(enrich_outputfile_name)
+        #     return Response(serializer.data)
+        #     # return Response({'runid': new_run.id})
+        # else:
+        #     return Response({},status=500)
 
 
 class Register(APIView):
