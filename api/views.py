@@ -205,7 +205,7 @@ class RunViewSet(viewsets.ModelViewSet):
         clusters = self.request.query_params.get('clusters')
         organism = self.request.query_params.get('organism')
         if genes is not None and pvalue is not None and clusters is not None:
-            if organism not in ['hsa','gga','bta','cfa','mmu','rno','cel','ath','dme','sce','eco','dre']:
+            if organism not in ['hsa','gga','bta','cfa','mmu','rno','cel','ath','dme','sce','eco','dre'] and int(clusters)>=1:
                 return Response({},status=500)
 
             genes = bleach.clean(genes)
@@ -236,8 +236,11 @@ class RunViewSet(viewsets.ModelViewSet):
             subprocess.call(['/GOUtil/./enrich', '-a', annotation_file_name, '-e', edgelist_file_name, '-t', genefile_name, '-b', background_file_name, '-o', enrich_outputfile_name, '-p', pvalue])
             print "Enrich run time %s" % (time.time()-e_start)
 
-            enrich_outputfile = open(enrich_outputfile_name, 'r')
-
+            try:
+                enrich_outputfile = open(enrich_outputfile_name, 'r')
+            except IOError:
+                print "Error no enrichment file."
+                return Response({'error': 'Enrichment analysis failed for these Genes and Organism.'},status=500)
             #Multi-threaded loader to load in all of the enrichment terms
             enrich_queue = Queue.Queue()
             for i in range(10):
@@ -261,7 +264,11 @@ class RunViewSet(viewsets.ModelViewSet):
             print "MDS run time %s" % (time.time()-mds_sim_start)
 
             #Multi-threaded loader to load in all of the enrichment term coordinates
-            semsim_outputfile = open(semsim_outputfile_name, 'r')
+            try:
+                semsim_outputfile = open(semsim_outputfile_name, 'r')
+            except IOError:
+                print "Error No MDS file"
+                return Response({'error': 'Semantic Similarity Computation Failed for these Genes and Organism.'},status=500)
             enrich_queue.join()
             coords_queue = Queue.Queue()
             for i in range(5):
@@ -276,9 +283,11 @@ class RunViewSet(viewsets.ModelViewSet):
             subprocess.call(['python','/GOUtil/spectralClustering.py', semsim_outputfile_name, clusters_outputfile_name, clusters])
             print "Spectral run time %s" % (time.time()-spectral_start)
 
-
-            clusters_outputfile = open(clusters_outputfile_name, 'r')
-
+            try:
+                clusters_outputfile = open(clusters_outputfile_name, 'r')
+            except IOError:
+                print "Error no clusters exist"
+                return Response({'error': 'No clusters found for these Genes and Organism.'},status=500)
             #Multi-threaded loader to do the clustering and update the enrichment records
             coords_queue.join()
             cluster_queue = Queue.Queue()
