@@ -48,7 +48,6 @@ class TermAdmin(admin.ModelAdmin):
 class Gene(models.Model):
     geneid = models.CharField(max_length=100, blank=False)
     name = models.CharField(max_length=10000, blank=True)
-    terms = models.ManyToManyField(Term, related_name='genes', blank=True)
 
     def __str__(self):
         return str(self.geneid) + ' - ' + str(self.name)
@@ -65,29 +64,12 @@ class GeneAdmin(admin.ModelAdmin):
     list_display = ('id', 'geneid')
 
 
-class Enrichment(models.Model):
-    term = models.ForeignKey(Term, on_delete=models.CASCADE, blank=False)
-    pvalue = models.FloatField(blank=False)
-    level = models.FloatField(blank=False)
-
-    def __str__(self):
-        return str(self.term) + ' - ' + str(self.pvalue) + ' - ' + str(self.level)
-
-
-class EnrichmentSerializer(serializers.ModelSerializer):
-
-    class Meta:
-        model = Enrichment
-        fields = "__all__"
-
-
 class EnrichmentAdmin(admin.ModelAdmin):
     list_display = ('id', 'term', 'pvalue', 'level')
 
 
 class Run(models.Model):
     name = models.CharField(max_length=10000, blank=True)
-    enrichments = models.ManyToManyField(Enrichment, related_name='enrichments', blank=True)
     created = models.DateField(auto_now_add=True)
 
     def __str__(self):
@@ -103,3 +85,24 @@ class RunSerializer(serializers.ModelSerializer, EagerLoadingMixin):
 
 class RunAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'created')
+
+class Enrichment(models.Model):
+    run = models.ForeignKey(Run, on_delete=models.CASCADE, blank=False, related_name="enrichments")
+    term = models.ForeignKey(Term, on_delete=models.CASCADE, blank=False)
+    pvalue = models.FloatField(blank=False)
+    level = models.FloatField(blank=False)
+    semanticdissimilarityx = models.FloatField(blank=True, default=0)
+    semanticdissimilarityy = models.FloatField(blank=True, default=0)
+    cluster = models.IntegerField(blank=False, default=0)
+    medoid = models.BooleanField(blank=True, default=False)
+    genes = models.ManyToManyField(Term, related_name='enrichments', blank=True)
+
+    def __str__(self):
+        return str(self.term) + ' - ' + str(self.pvalue) + ' - ' + str(self.level)
+
+
+class EnrichmentSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Enrichment
+        fields = "__all__"

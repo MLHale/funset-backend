@@ -114,9 +114,9 @@ from ipware.ip import get_ip
 from threading import Thread
 import Queue
 
-class LoadThread(Thread):
+class LoadEnrichmentsThread(Thread):
     def __init__(self, queue, enrichmentrun):
-        super(LoadThread, self).__init__()
+        super(LoadEnrichmentsThread, self).__init__()
         self.queue = queue
         self.enrichmentrun = enrichmentrun
 
@@ -127,11 +127,59 @@ class LoadThread(Thread):
                 tokens = enrichmentinfo.split('\t')
                 try:
                     term = Term.objects.get(termid=tokens[0])
-                    enrichment = Enrichment(term=term,pvalue=tokens[2],level=tokens[3].replace('\n',''))
+                    enrichment = Enrichment(term=term,run=self.enrichmentrun,pvalue=float(tokens[2]),level=float(tokens[3].replace('\n','')))
                     enrichment.save()
-                    self.enrichmentrun.enrichments.add(enrichment)
                 except Term.DoesNotExist:
                     print 'term %s was not in the database'% tokens[0]
+                except IndexError:
+                    print 'Error parsing term - IndexError'
+            #signals to queue job is done
+            self.queue.task_done()
+
+
+class LoadCoordsThread(Thread):
+    def __init__(self, queue, enrichmentrun):
+        super(LoadCoordsThread, self).__init__()
+        self.queue = queue
+        self.enrichmentrun = enrichmentrun
+
+    def run(self):
+        while True:
+            enrichmentinfo = self.queue.get()
+            if enrichmentinfo != '\n':
+                tokens = enrichmentinfo.split('\t')
+                try:
+                    enrichment = Enrichment.objects.get(run=self.enrichmentrun,term__termid=tokens[0])
+                    enrichment.semanticdissimilarityx = float(tokens[1])
+                    enrichment.semanticdissimilarityy = float(tokens[2])
+                    enrichment.save()
+                except Enrichment.DoesNotExist:
+                    print 'term %s was not in the database'% tokens[0]
+                except IndexError:
+                    print ('Error parsing term - ', tokens, IndexError)
+            #signals to queue job is done
+            self.queue.task_done()
+
+class LoadClustersThread(Thread):
+    def __init__(self, queue, enrichmentrun):
+        super(LoadClustersThread, self).__init__()
+        self.queue = queue
+        self.enrichmentrun = enrichmentrun
+
+    def run(self):
+        while True:
+            enrichmentinfo = self.queue.get()
+            if enrichmentinfo != '\n':
+                tokens = enrichmentinfo.split('\t')
+                try:
+                    enrichment = Enrichment.objects.get(run=self.enrichmentrun,term__termid=tokens[0])
+                    enrichment.cluster = int(tokens[1])
+                    enrichment.medoid = bool(tokens[2])
+                    enrichment.save()
+                except Enrichment.DoesNotExist:
+                    print 'term %s was not in the database'% tokens[0]
+                except IndexError:
+                    print ('Error parsing term - ', IndexError)
             #signals to queue job is done
             self.queue.task_done()
 
@@ -147,53 +195,88 @@ class RunViewSet(viewsets.ModelViewSet):
     @list_route()
     def invoke(self, request):
         #need to add error handling and resilence
+        start = time.time()
         genes = self.request.query_params.get('genes')
         pvalue = self.request.query_params.get('pvalue')
+        clusters = self.request.query_params.get('clusters')
         if genes is not None and pvalue is not None:
             genes = bleach.clean(genes)
             genes = unquote(genes).replace(',', '\n')
 
             #temp files to be used by the GOUtil
             tmp_uuid = str(uuid.uuid4())
-            genefile_name = '/GOUtil/data/inputgenes' + tmp_uuid + '.txt'
-            outputfile_name = '/GOUtil/data/output' + tmp_uuid + '.txt'
+            genefile_name = 'useruploads/inputgenes' + tmp_uuid + '.txt'
+            enrich_outputfile_name = 'useruploads/enrichment' + tmp_uuid + '.txt'
+            sim_outputfile_name = 'useruploads/funsim' + tmp_uuid + '.txt'
+            semsim_outputfile_name = 'useruploads/semsim' + tmp_uuid + '.txt'
+            clusters_outputfile_name = 'useruploads/clusters' + tmp_uuid + '.txt'
             genefile = open(genefile_name, 'w+')
 
             genefile.write(genes)
             genefile.close()
-            #invoke enrichment util
-            process = subprocess.call(['/GOUtil/./enrich', '-a', '/GOUtil/data/annHuman20171106_noIEA_noND_noRCA.txt', '-e', '/GOUtil/data/edgeList20171106.txt', '-t', genefile_name, '-b', '/GOUtil/data/background.txt', '-o', outputfile_name, '-p', pvalue])
-            outputfile = open(outputfile_name, 'r')
+
             new_run = Run(name=get_ip(request))
             new_run.save()
+            ###### Enrichment Pipeline ######
 
-            #Multi-threaded loader to load in all of the enrichment terms (currently loads all)
-            queue = Queue.Queue()
-            start = time.time()
-            threads = []
+            #invoke enrichment util to compute enrichments
+            subprocess.call(['/GOUtil/./enrich', '-a', '/GOUtil/data/annHuman20171106_noIEA_noND_noRCA.txt', '-e', '/GOUtil/data/edgeList20171106.txt', '-t', genefile_name, '-b', '/GOUtil/data/background.txt', '-o', enrich_outputfile_name, '-p', pvalue])
 
+            enrich_outputfile = open(enrich_outputfile_name, 'r')
+
+            enrich_queue = Queue.Queue()
             for i in range(5):
-                t = LoadThread(queue, new_run)
+                t = LoadEnrichmentsThread(enrich_queue, new_run)
                 t.setDaemon(True)
                 t.start()
-            for line in outputfile:
-                queue.put(line)
-                # if float(line.split('\t')[2]) < float(pvalue):
-                #     print line.split('\t')[2]
-                #     print "Loading term %s, with p-value: %s" % (line.split('\t')[0], line.split('\t')[2])
-                #     queue.put(line)
-                # else:
-                #     print "Ignoring term %s, with p-value: %s" % (line.split('\t')[0], line.split('\t')[2])
+            for line in enrich_outputfile:
+                enrich_queue.put(line)
 
-            queue.join()
+            enrich_queue.join()
+
+            #invoke funSim util to compute semantic similarity
+            subprocess.call(['/GOUtil/./funSim', '-a', '/GOUtil/data/annHuman20171106_noIEA_noND_noRCA.txt', '-e', '/GOUtil/data/edgeList20171106.txt', '-o', sim_outputfile_name, '-t',"Lin", '-f', enrich_outputfile_name])
+
+            #compute x, y coordinates for enriched terms
+            subprocess.call(['python','/GOUtil/mdsSemSim.py', sim_outputfile_name, semsim_outputfile_name])
+
+            #spectral clustering
+            subprocess.call(['python','/GOUtil/spectralClustering.py', semsim_outputfile_name, clusters_outputfile_name, clusters])
+
+
+            semsim_outputfile = open(semsim_outputfile_name, 'r')
+            clusters_outputfile = open(clusters_outputfile_name, 'r')
+
+
+            #Multi-threaded loader to load in all of the enrichment terms (currently loads all)
+            coords_queue = Queue.Queue()
+            cluster_queue = Queue.Queue()
+
+            for i in range(5):
+                t = LoadCoordsThread(coords_queue, new_run)
+                t.setDaemon(True)
+                t.start()
+            for line in semsim_outputfile:
+                coords_queue.put(line)
+
+            coords_queue.join()
+            for i in range(5):
+                t = LoadClustersThread(cluster_queue, new_run)
+                t.setDaemon(True)
+                t.start()
+            for line in clusters_outputfile:
+                cluster_queue.put(line)
+
+            cluster_queue.join()
             print "Loading time: %s" % (time.time()-start)
 
             serializer = RunSerializer(new_run)
             #cleanup temp files
-            outputfile.close()
-
-            os.remove(genefile_name)
-            os.remove(outputfile_name)
+            enrich_outputfile.close()
+            semsim_outputfile.close()
+            clusters_outputfile.close()
+            # os.remove(genefile_name)
+            # os.remove(enrich_outputfile_name)
             return Response(serializer.data)
             # return Response({'runid': new_run.id})
         else:

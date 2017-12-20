@@ -20,4 +20,4 @@ DATABASES = {
 }
 
 ALLOWED_HOSTS = ['137.48.191.135','localhost', 'django']
-ENVIRONMENT = "PROD"
+ENVIRONMENT = "DEV"
