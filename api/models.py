@@ -33,13 +33,22 @@ class Term(models.Model):
     class JSONAPIMeta:
         resource_name = "terms"
 
+
+class TermSerializerRelated(serializers.ModelSerializer, EagerLoadingMixin):
+    class Meta:
+        model = Term
+        fields = ("termid","name")
+
 class TermSerializer(serializers.ModelSerializer, EagerLoadingMixin):
     _PREFETCH_RELATED_FIELDS = ['parents']
-
+    included_serializers = {
+        'parents': TermSerializerRelated
+    }
     class Meta:
         model = Term
         fields = "__all__"
-
+    class JSONAPIMeta:
+        included_resources = ['parents']
 
 class TermAdmin(admin.ModelAdmin):
     list_display = ('id', 'termid', 'name')
