@@ -97,10 +97,16 @@ class Enrichment(models.Model):
 
 
 class EnrichmentSerializer(serializers.ModelSerializer):
-
+    included_serializers = {
+        'genes': GeneSerializer,
+        'term': TermSerializer
+    }
     class Meta:
         model = Enrichment
         fields = "__all__"
+
+    class JSONAPIMeta:
+        included_resources = ['genes','term']
 
 
 class RunSerializer(serializers.ModelSerializer):
