@@ -85,6 +85,8 @@ class Run(models.Model):
     def __str__(self):
         return str(self.id) + ' - ' + str(self.ip) +' - ' + str(self.name)+ ' - ' + str(self.created)
 
+    class JSONAPIMeta:
+        resource_name = 'runs'
 
 class RunAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'created')
@@ -115,6 +117,7 @@ class EnrichmentSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
     class JSONAPIMeta:
+        resource_name = 'enrichment'
         included_resources = ['genes','term']
 
 
@@ -124,3 +127,17 @@ class RunSerializer(serializers.ModelSerializer):
     class Meta:
         model = Run
         fields = "__all__"
+
+class RunIncludesSerializer(serializers.ModelSerializer):
+    # _PREFETCH_RELATED_FIELDS = ['enrichments']
+    included_serializers = {
+        'enrichments': EnrichmentSerializer
+    }
+    enrichments = EnrichmentSerializer(many=True)
+    class Meta:
+        model = Run
+        fields = "__all__"
+
+    class JSONAPIMeta:
+        resource_name = 'runs'
+        included_resources = ['enrichments']
