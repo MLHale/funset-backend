@@ -223,10 +223,10 @@ def loadClustersWorker(lock, enrichmentdata):
             enrichment = Enrichment.objects.get(run__id=enrichmentrun,term__termid=tokens[0])
             enrichment.cluster = int(tokens[1])
             enrichment.medoid = 'True'==tokens[2].replace('\n','')
-            lock.acquire()
+            # lock.acquire()
             enrichment.save()
             # print ('enrichment',enrichment.cluster,enrichment)
-            lock.release()
+            # lock.release()
         except Enrichment.DoesNotExist:
             print 'term %s was not in the database'% tokens[0]
         except IndexError:
@@ -291,6 +291,7 @@ class RunViewSet(viewsets.ModelViewSet):
             #     # t.setDaemon(True)
             #     threads.append(t)
             #     t.start()
+            load_start = time.time()
             manager = Manager()
             lock = manager.Lock()
             taskworker = partial(loadClustersWorker, lock)
@@ -304,6 +305,7 @@ class RunViewSet(viewsets.ModelViewSet):
             pool.map(taskworker, tokens)
             pool.close()
             pool.join()
+            print "Multi-threading Loading time: %s" % (time.time()-load_start)
             # for line in clusters_outputfile:
             #     cluster_queue.put(line)
 
@@ -313,17 +315,28 @@ class RunViewSet(viewsets.ModelViewSet):
             #     thread.set_running(False)
             # #     print (thread)
             # #     print threading.enumerate()
+            # single_load_start = time.time()
+            # for (enrichmentrun, enrichmentinfo) in tokens:
+            #     token = enrichmentinfo.split('\t')
+            #     enrichment = Enrichment.objects.get(run__id=enrichmentrun,term__termid=token[0])
+            #     enrichment.cluster = int(token[1])
+            #     enrichment.medoid = 'True'==token[2].replace('\n','')
+            #     enrichment.save()
+            # print "Single Threaded Loading time: %s" % (time.time()-single_load_start)
 
-            print "Loading time: %s" % (time.time()-start)
+
 
             # results = Run.objects.get(id=run_obj.id)
             db.connection.close()
+
+
             serializer = RunIncludesSerializer(run_obj)
             #cleanup temp files
             clusters_outputfile.close()
             # os.remove(genefile_name)
             # os.remove(enrich_outputfile_name)
             # db.connection.closeall()
+            print "Overall Loading time: %s" % (time.time()-start)
             return Response(serializer.data)
             # return Response({'runid': new_run.id})
         else:
