@@ -47,6 +47,17 @@ from django.core import serializers
 import subprocess
 
 from urllib import unquote
+
+import uuid
+import os
+from ipware.ip import get_ip
+from threading import Thread
+from multiprocessing import Process, Queue
+
+from multiprocessing import Pool, Lock, Manager
+from functools import partial
+# import Queue
+from django import db
 class TermViewSet(viewsets.ModelViewSet):
     """
     API endpoint that handles requests for terms.
@@ -108,17 +119,17 @@ class EnrichmentViewSet(viewsets.ModelViewSet):
     queryset = Enrichment.objects.all()
     serializer_class = EnrichmentSerializer
 
-import uuid
-import os
-from ipware.ip import get_ip
-from threading import Thread
-import Queue
 
 class LoadEnrichmentsThread(Thread):
     def __init__(self, queue, enrichmentrun):
         super(LoadEnrichmentsThread, self).__init__()
         self.queue = queue
         self.enrichmentrun = enrichmentrun
+
+    def set_running(self,running):
+        print "Setting run to false"
+        db.connection.close()
+        self.running = running;
 
     def run(self):
         while True:
@@ -147,6 +158,11 @@ class LoadCoordsThread(Thread):
         self.queue = queue
         self.enrichmentrun = enrichmentrun
 
+    def set_running(self,running):
+        print "Setting run to false"
+        db.connection.close()
+        self.running = running;
+
     def run(self):
         while True:
             enrichmentinfo = self.queue.get()
@@ -164,14 +180,20 @@ class LoadCoordsThread(Thread):
             #signals to queue job is done
             self.queue.task_done()
 
-class LoadClustersThread(Thread):
+
+
+class LoadClustersThread(Process):
     def __init__(self, queue, enrichmentrun):
         super(LoadClustersThread, self).__init__()
         self.queue = queue
         self.enrichmentrun = enrichmentrun
+        self.running = True
+
+    def set_running(self,running):
+        self.running = running;
 
     def run(self):
-        while True:
+        while self.running:
             enrichmentinfo = self.queue.get()
             if enrichmentinfo != '\n':
                 tokens = enrichmentinfo.split('\t')
@@ -186,8 +208,35 @@ class LoadClustersThread(Thread):
                     print ('Error parsing term - ', IndexError)
             #signals to queue job is done
             self.queue.task_done()
+        # db.connection.close()
+import sys
+import django
 
+def loadClustersWorker(lock, enrichmentdata):
+    db.connection.close()
+    enrichmentrun, enrichmentinfo = enrichmentdata
+    # print('clusterworker',enrichmentrun, enrichmentinfo)
+    # print lock
+    if enrichmentinfo != '\n':
+        tokens = enrichmentinfo.split('\t')
+        try:
+            enrichment = Enrichment.objects.get(run__id=enrichmentrun,term__termid=tokens[0])
+            enrichment.cluster = int(tokens[1])
+            enrichment.medoid = 'True'==tokens[2].replace('\n','')
+            lock.acquire()
+            enrichment.save()
+            # print ('enrichment',enrichment.cluster,enrichment)
+            lock.release()
+        except Enrichment.DoesNotExist:
+            print 'term %s was not in the database'% tokens[0]
+        except IndexError:
+            print ('Error parsing term - ', IndexError)
+        except django.db.utils.DatabaseError as e:
+            print ('DatabaseError', e)
+        except:
+            print("Unexpected error:", sys.exc_info()[0])
 
+import pickle
 class RunViewSet(viewsets.ModelViewSet):
     """
     API endpoint that loads overall Runs (user invocations of the enrichment util).
@@ -199,8 +248,9 @@ class RunViewSet(viewsets.ModelViewSet):
     def recluster(self, request, pk):
         #need to add error handling and resilence
         start = time.time()
-        print ('run',pk)
+        # print ('run',pk)
         clusters = self.request.query_params.get('clusters')
+        # print ('clusters',clusters)
         if clusters is not None:
             if int(clusters)<=0:
                 return Response({'error':'Not a valid number of clusters'},status=500)
@@ -215,7 +265,7 @@ class RunViewSet(viewsets.ModelViewSet):
             semsim_outputfile_name = 'useruploads/semsim-' + run_uuid + '.txt'
             clusters_outputfile_name = 'useruploads/clusters-' + run_uuid + '.txt'
 
-            ###### Enrichment Pipeline ######
+            ###### Data Processing Pipeline ######
             try:
                 clusters_outputfile = open(clusters_outputfile_name, 'w').close()#clear the file
             except IOError:
@@ -234,23 +284,46 @@ class RunViewSet(viewsets.ModelViewSet):
                 return Response({'error': 'No clusters found for these Genes and Organism.'},status=500)
             #Multi-threaded loader to do the clustering and update the enrichment records
 
-            cluster_queue = Queue.Queue()
-            for i in range(5):
-                t = LoadClustersThread(cluster_queue, run_obj)
-                t.setDaemon(True)
-                t.start()
-            for line in clusters_outputfile:
-                cluster_queue.put(line)
+            # cluster_queue = Queue()
+            # threads = []
+            # for i in range(5):
+            #     t = LoadClustersThread(cluster_queue, run_obj)
+            #     # t.setDaemon(True)
+            #     threads.append(t)
+            #     t.start()
+            manager = Manager()
+            lock = manager.Lock()
+            taskworker = partial(loadClustersWorker, lock)
+            pool = Pool(5)
+            tokens = [(run_obj.id, line) for line in clusters_outputfile]
+            # print tokens
+            # for line in tokens:
+            #     test=pickle.dumps((run_obj.id, line))
+            #     print pickle.loads(test)
+            # print "everything pickled"
+            pool.map(taskworker, tokens)
+            pool.close()
+            pool.join()
+            # for line in clusters_outputfile:
+            #     cluster_queue.put(line)
 
-            cluster_queue.join()
+            # # cluster_queue.join()
+            # for thread in threads:
+            #     thread.join()
+            #     thread.set_running(False)
+            # #     print (thread)
+            # #     print threading.enumerate()
+
             print "Loading time: %s" % (time.time()-start)
 
-            enrichments = Enrichment.objects.filter(run=run_obj)
+            # results = Run.objects.get(id=run_obj.id)
+            db.connection.close()
             serializer = RunIncludesSerializer(run_obj)
             #cleanup temp files
             clusters_outputfile.close()
             # os.remove(genefile_name)
             # os.remove(enrich_outputfile_name)
+            # db.connection.closeall()
             return Response(serializer.data)
             # return Response({'runid': new_run.id})
         else:
