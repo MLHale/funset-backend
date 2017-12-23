@@ -127,7 +127,7 @@ def loadEnrichmentsWorker(lock, enrichmentdata):
         try:
             term = Term.objects.get(termid=tokens[0])
             run = Run.objects.get(id=enrichmentrun)
-            enrichment = Enrichment(term=term,run=run,pvalue=float(tokens[2]),level=float(tokens[3].replace('\n','')))
+            enrichment = Enrichment(term=term,run=run,pvalue=float(tokens[2]),level=10*math.log(float(tokens[3].replace('\n',''))))
             enrichment.save()
             for token in tokens[4].replace('\n','').split(' '):
                 gene = Gene.objects.get_or_create(geneid=token)[0]
