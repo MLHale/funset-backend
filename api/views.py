@@ -274,20 +274,19 @@ class RunViewSet(viewsets.ModelViewSet):
     def invoke(self, request):
         #need to add error handling and resilence
         start = time.time()
-        genes = self.request.query_params.get('genes')
-        pvalue = self.request.query_params.get('pvalue')
-        clusters = self.request.query_params.get('clusters')
-        organism = self.request.query_params.get('organism')
+        genes = self.request.data['genes']
+        pvalue = self.request.data['pvalue']
+        clusters = self.request.data['clusters']
+        organism = self.request.data['organism']
         background = self.request.data['background']
         if genes is not None and pvalue is not None and clusters is not None:
             if organism not in ['hsa','gga','bta','cfa','mmu','rno','cel','ath','dme','sce','eco','dre'] or int(clusters)<=0:
                 return Response({},status=500)
 
-            genes = bleach.clean(genes)
-            genes = unquote(genes).replace(',', '\n')
+            genes = bleach.clean(genes).replace(',', '\n')
             background = bleach.clean(background)
-            background = unquote(background)
-
+            print ('Genes: ',genes)
+            print ('Clusters:',clusters)
 
             #temp files to be used by the GOUtil
             tmp_uuid = str(uuid.uuid4())
