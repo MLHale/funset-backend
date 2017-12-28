@@ -271,7 +271,7 @@ class RunViewSet(viewsets.ModelViewSet):
             return Response({'error':'Not a valid number of clusters'},status=500)
 
 
-    @list_route(methods=['post'], parser_classes=[parsers_normal.JSONParser,])
+    @list_route(methods=['post'], parser_classes=[parsers_normal.FORMParser,])
     def invoke(self, request):
         #need to add error handling and resilence
         start = time.time()
