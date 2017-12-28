@@ -23,6 +23,7 @@ from api.models import *
 
 #REST API
 from rest_framework_json_api import parsers
+from rest_framework_json_api import parsers as parsers_normal
 from rest_framework import viewsets, filters
 from django.http import Http404, HttpResponse
 from rest_framework.views import APIView
@@ -270,7 +271,7 @@ class RunViewSet(viewsets.ModelViewSet):
             return Response({'error':'Not a valid number of clusters'},status=500)
 
 
-    @list_route(methods=['post'])
+    @list_route(methods=['post'], parsers=[parsers_normal.JSONParser,])
     def invoke(self, request):
         #need to add error handling and resilence
         start = time.time()
