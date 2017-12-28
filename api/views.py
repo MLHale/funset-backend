@@ -278,12 +278,16 @@ class RunViewSet(viewsets.ModelViewSet):
         pvalue = self.request.query_params.get('pvalue')
         clusters = self.request.query_params.get('clusters')
         organism = self.request.query_params.get('organism')
+        background = self.request.query_params.get('background')
         if genes is not None and pvalue is not None and clusters is not None:
             if organism not in ['hsa','gga','bta','cfa','mmu','rno','cel','ath','dme','sce','eco','dre'] or int(clusters)<=0:
                 return Response({},status=500)
 
             genes = bleach.clean(genes)
             genes = unquote(genes).replace(',', '\n')
+            background = bleach.clean(background)
+            background = unquote(background)
+
 
             #temp files to be used by the GOUtil
             tmp_uuid = str(uuid.uuid4())
@@ -302,11 +306,21 @@ class RunViewSet(viewsets.ModelViewSet):
             base_dir = '/GOUtildata/'
             annotation_file_name = base_dir+'ann.'+organism+'.bp.txt'
             edgelist_file_name = base_dir+'edgeList.'+'bp.txt'
-            background_file_name = base_dir+'background.txt'
+
+            if background:
+                background_file_name = 'useruploads/background-' + tmp_uuid + '.txt'
+                backgroundfile = open(background_file_name, 'w+')
+
+                backgroundfile.write(background)
+                backgroundfile.close()
+            else:
+                background_file_name = base_dir+'background.txt'
 
             ###### Enrichment Pipeline ######
             #invoke enrichment util to compute enrichments
             e_start = time.time()
+
+
             subprocess.call(['/GOUtil/./enrich', '-a', annotation_file_name, '-e', edgelist_file_name, '-t', genefile_name, '-b', background_file_name, '-o', enrich_outputfile_name, '-p', pvalue])
             print "Enrich run time %s" % (time.time()-e_start)
 
