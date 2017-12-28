@@ -275,7 +275,6 @@ class RunViewSet(viewsets.ModelViewSet):
     def invoke(self, request):
         #need to add error handling and resilence
         start = time.time()
-        print request.data
         genes = request.data.get('genes')
         pvalue = request.data.get('pvalue')
         clusters = request.data.get('clusters')
@@ -287,8 +286,6 @@ class RunViewSet(viewsets.ModelViewSet):
 
             genes = bleach.clean(genes).replace(',', '\n')
             background = bleach.clean(background)
-            print ('Genes: ',genes)
-            print ('Clusters:',clusters)
 
             #temp files to be used by the GOUtil
             tmp_uuid = str(uuid.uuid4())
