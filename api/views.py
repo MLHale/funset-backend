@@ -275,11 +275,12 @@ class RunViewSet(viewsets.ModelViewSet):
     def invoke(self, request):
         #need to add error handling and resilence
         start = time.time()
-        genes = self.request.data['genes']
-        pvalue = self.request.data['pvalue']
-        clusters = self.request.data['clusters']
-        organism = self.request.data['organism']
-        background = self.request.data['background']
+        print request.data
+        genes = request.data['genes']
+        pvalue = request.data['pvalue']
+        clusters = request.data['clusters']
+        organism = request.data['organism']
+        background = request.data['background']
         if genes is not None and pvalue is not None and clusters is not None:
             if organism not in ['hsa','gga','bta','cfa','mmu','rno','cel','ath','dme','sce','eco','dre'] or int(clusters)<=0:
                 return Response({},status=500)
