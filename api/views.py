@@ -327,7 +327,7 @@ class RunViewSet(viewsets.ModelViewSet):
                 enrich_outputfile = open(enrich_outputfile_name, 'r')
             except IOError:
                 print "Error no enrichment file."
-                return Response({'error': 'Enrichment analysis failed for these Genes and Organism.'},status=500)
+                return Response({'error': 'No Enrichment found for these Genes and Organism.'},status=500)
             #Multi-threaded loader to load in all of the enrichment terms
             enrich_manager = Manager()
             enrich_lock = enrich_manager.Lock()
