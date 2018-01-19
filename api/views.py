@@ -280,6 +280,7 @@ class RunViewSet(viewsets.ModelViewSet):
         clusters = request.data.get('clusters')
         organism = request.data.get('organism')
         background = request.data.get('background')
+        namespace = request.data.get('namespace')
         if genes is not None and pvalue is not None and clusters is not None:
             if organism not in ['hsa','gga','bta','cfa','mmu','rno','cel','ath','dme','sce','eco','dre'] or int(clusters)<=0:
                 return Response({},status=500)
@@ -302,7 +303,7 @@ class RunViewSet(viewsets.ModelViewSet):
             new_run = Run(name=tmp_uuid,ip=get_ip(request))
             new_run.save()
             base_dir = '/GOUtildata/'
-            annotation_file_name = base_dir+'ann.'+organism+'.bp.txt'
+            annotation_file_name = base_dir+'ann.'+organism+'.'+namespace+'.txt'
             edgelist_file_name = base_dir+'edgeList.'+'bp.txt'
 
             if background:
@@ -312,7 +313,7 @@ class RunViewSet(viewsets.ModelViewSet):
                 backgroundfile.write(background)
                 backgroundfile.close()
             else:
-                background_file_name = base_dir+'background.txt'
+                background_file_name = base_dir+'background.'+organism+'.'+namespace+'.txt'
 
             ###### Enrichment Pipeline ######
             #invoke enrichment util to compute enrichments
