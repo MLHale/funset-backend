@@ -3,7 +3,7 @@
 # @Email:  mlhale@unomaha.edu
 # @Filename: models.py
 # @Last modified by:   mlhale
-# @Last modified time: 2018-02-15T00:20:27-06:00
+# @Last modified time: 2018-02-15T23:45:23-06:00
 # @License: Funset is a web-based BIOI tool for visualizing genetic pathway information. This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version. This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details. You should have received a copy of the GNU General Public License along with this program. If not, see http://www.gnu.org/licenses/.
 # @Copyright: Copyright (C) 2017 Matthew L. Hale, Dario Ghersi, Ishwor Thapa
 
@@ -26,10 +26,25 @@ class EagerLoadingMixin:
             queryset = queryset.prefetch_related(*cls._PREFETCH_RELATED_FIELDS)
         return queryset
 
+class Ontology(models.Model):
+    created = models.DateField(auto_now_add=True)
+    name = models.CharField(max_length=1000, blank=False, unique=True)
+    description = models.CharField(max_length=1000, blank=True)
 
+    def __str__(self):
+        return str(self.name)
+
+    class JSONAPIMeta:
+        resource_name = "ontologies"
+
+class OntologySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Ontology
+        fields = "__all__"
 
 class Term(models.Model):
-    termid = models.CharField(max_length=100, blank=False, unique=True)
+    ontology = models.ForeignKey(Ontology, related_name="terms", on_delete=models.CASCADE, blank=False)
+    termid = models.CharField(max_length=100, blank=False)
     name = models.CharField(max_length=10000, blank=True)
     namespace = models.CharField(max_length=10000, blank=True)
     description = models.CharField(max_length=10000, blank=True)
@@ -53,13 +68,14 @@ class TermSerializerRelated(serializers.ModelSerializer, EagerLoadingMixin):
 class TermSerializer(serializers.ModelSerializer, EagerLoadingMixin):
     _PREFETCH_RELATED_FIELDS = ['parents']
     included_serializers = {
-        'parents': TermSerializerRelated
+        'parents': TermSerializerRelated,
+        'ontology': OntologySerializer
     }
     class Meta:
         model = Term
         fields = "__all__"
     class JSONAPIMeta:
-        included_resources = ['parents']
+        included_resources = ['parents','ontology']
 
 class TermAdmin(admin.ModelAdmin):
     list_display = ('id', 'termid', 'name')

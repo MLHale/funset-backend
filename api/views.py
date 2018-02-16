@@ -3,7 +3,7 @@
 # @Email:  mlhale@unomaha.edu
 # @Filename: views.py
 # @Last modified by:   mlhale
-# @Last modified time: 2018-02-15T00:20:35-06:00
+# @Last modified time: 2018-02-16T00:45:35-06:00
 # @License: Funset is a web-based BIOI tool for visualizing genetic pathway information. This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version. This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details. You should have received a copy of the GNU General Public License along with this program. If not, see http://www.gnu.org/licenses/.
 # @Copyright: Copyright (C) 2017 Matthew L. Hale, Dario Ghersi, Ishwor Thapa
 
@@ -292,12 +292,19 @@ class RunViewSet(viewsets.ModelViewSet):
         organism = request.data.get('organism')
         background = request.data.get('background')
         namespace = request.data.get('namespace')
-        if genes is not None and pvalue is not None and clusters is not None:
+        goontology = request.data.get('goontology')
+        if genes is not None and pvalue is not None and clusters is not None and goontology is not None:
             if organism not in ['hsa','gga','bta','cfa','mmu','rno','cel','ath','dme','sce','eco','dre'] or int(clusters)<=0:
-                return Response({},status=500)
+                return Response({'error': 'Organism type and/or clusters are not valid parameters'},status=500)
 
             genes = bleach.clean(genes).replace(',', '\n')
             background = bleach.clean(background)
+            goontology = bleach.clean(goontology)
+
+            try:
+                ontology = Ontology.objects.get(pk=int(goontology))
+            except Ontology.DoesNotExist:
+                return Response({'error':'Ontology does not exist'},status=404)
 
             #temp files to be used by the GOUtil
             tmp_uuid = str(uuid.uuid4())
@@ -313,7 +320,7 @@ class RunViewSet(viewsets.ModelViewSet):
 
             new_run = Run(name=tmp_uuid,ip=get_ip(request))
             new_run.save()
-            base_dir = '/GOUtildata/'
+            base_dir = '/GOUtildata/'+ontology.name+'/'
             annotation_file_name = base_dir+'ann.'+organism+'.'+namespace+'.txt'
             edgelist_file_name = base_dir+'edgeList.'+'bp.txt'
 
@@ -414,7 +421,7 @@ class RunViewSet(viewsets.ModelViewSet):
             return Response(serializer.data)
             # return Response({'runid': new_run.id})
         else:
-            return Response({},status=500)
+            return Response({'error': 'Invalid parameters'},status=500)
 
 
 class Register(APIView):
