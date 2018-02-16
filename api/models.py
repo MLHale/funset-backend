@@ -3,7 +3,7 @@
 # @Email:  mlhale@unomaha.edu
 # @Filename: models.py
 # @Last modified by:   mlhale
-# @Last modified time: 2018-02-15T23:45:23-06:00
+# @Last modified time: 2018-02-16T01:05:05-06:00
 # @License: Funset is a web-based BIOI tool for visualizing genetic pathway information. This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version. This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details. You should have received a copy of the GNU General Public License along with this program. If not, see http://www.gnu.org/licenses/.
 # @Copyright: Copyright (C) 2017 Matthew L. Hale, Dario Ghersi, Ishwor Thapa
 
@@ -37,10 +37,14 @@ class Ontology(models.Model):
     class JSONAPIMeta:
         resource_name = "ontologies"
 
+
 class OntologySerializer(serializers.ModelSerializer):
     class Meta:
         model = Ontology
         fields = "__all__"
+
+class OntologyAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name')
 
 class Term(models.Model):
     ontology = models.ForeignKey(Ontology, related_name="terms", on_delete=models.CASCADE, blank=False)
@@ -68,14 +72,15 @@ class TermSerializerRelated(serializers.ModelSerializer, EagerLoadingMixin):
 class TermSerializer(serializers.ModelSerializer, EagerLoadingMixin):
     _PREFETCH_RELATED_FIELDS = ['parents']
     included_serializers = {
-        'parents': TermSerializerRelated,
-        'ontology': OntologySerializer
+        'parents': TermSerializerRelated
     }
     class Meta:
         model = Term
         fields = "__all__"
     class JSONAPIMeta:
-        included_resources = ['parents','ontology']
+        included_resources = ['parents']
+
+
 
 class TermAdmin(admin.ModelAdmin):
     list_display = ('id', 'termid', 'name')
