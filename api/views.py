@@ -3,7 +3,7 @@
 # @Email:  mlhale@unomaha.edu
 # @Filename: views.py
 # @Last modified by:   mlhale
-# @Last modified time: 2018-02-16T01:03:02-06:00
+# @Last modified time: 2018-02-16T02:03:59-06:00
 # @License: Funset is a web-based BIOI tool for visualizing genetic pathway information. This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version. This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details. You should have received a copy of the GNU General Public License along with this program. If not, see http://www.gnu.org/licenses/.
 # @Copyright: Copyright (C) 2017 Matthew L. Hale, Dario Ghersi, Ishwor Thapa
 
@@ -143,11 +143,11 @@ class EnrichmentViewSet(viewsets.ModelViewSet):
 
 def loadEnrichmentsWorker(lock, enrichmentdata):
     db.connection.close()
-    enrichmentrun, enrichmentinfo = enrichmentdata
+    enrichmentrun, enrichmentinfo, ontology = enrichmentdata
     if enrichmentinfo != '\n':
         tokens = enrichmentinfo.split('\t')
         try:
-            term = Term.objects.get(termid=tokens[0])
+            term = Term.objects.get(ontology__id=ontology, termid=tokens[0])
             run = Run.objects.get(id=enrichmentrun)
             enrichment = Enrichment(term=term,run=run,pvalue=float(tokens[2]),level=10*math.log(float(tokens[3].replace('\n',''))))
             enrichment.save()
@@ -361,7 +361,7 @@ class RunViewSet(viewsets.ModelViewSet):
             enrich_lock = enrich_manager.Lock()
             enrich_taskworker = partial(loadEnrichmentsWorker, enrich_lock)
             enrich_pool = Pool(8)
-            enrich_tokens = [(new_run.id, line) for line in enrich_outputfile]
+            enrich_tokens = [(new_run.id, line, ontology.id) for line in enrich_outputfile]
 
             enrich_pool.map(enrich_taskworker, enrich_tokens)
 
