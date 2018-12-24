@@ -3,7 +3,7 @@
 # @Email:  mlhale@unomaha.edu
 # @Filename: views.py
 # @Last modified by:   matthale
-# @Last modified time: 2018-03-08T13:52:00-06:00
+# @Last modified time: 2018-12-24T01:49:28-06:00
 # @License: Funset is a web-based BIOI tool for visualizing genetic pathway information. This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version. This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details. You should have received a copy of the GNU General Public License along with this program. If not, see http://www.gnu.org/licenses/.
 # @Copyright: Copyright (C) 2017 Matthew L. Hale, Dario Ghersi, Ishwor Thapa
 
@@ -105,8 +105,8 @@ class TermViewSet(viewsets.ModelViewSet):
 
         if queryterms is not None:
             queryterms = unquote(queryterms).split(',')
-            print queryterms
-            print 'filtering'
+            # print queryterms
+            # print 'filtering'
             queryset = self.get_serializer_class().setup_eager_loading(Term.objects.filter(termid__in=queryterms).order_by('termid'))
         else:
             queryset = self.get_serializer_class().setup_eager_loading(Term.objects.order_by('termid'))
@@ -114,9 +114,13 @@ class TermViewSet(viewsets.ModelViewSet):
 
     @list_route()
     def get_pages(self, request):
-        objs = Term.objects.order_by('termid').count()
-        return Response({'count': objs, 'pages': int(math.ceil(float(objs)/settings.REST_FRAMEWORK['PAGE_SIZE']))})
-
+		namespace = str(self.request.query_params.get('namespace'))
+		ontology_id = int(self.request.query_params.get('goontology'))
+		if namespace is not None and ontology_id is not None:
+			objs = Term.objects.filter(ontology__id=ontology_id, namespace=namespace).order_by('termid').count()
+			return Response({'count': objs, 'pages': int(math.ceil(float(objs)/settings.REST_FRAMEWORK['PAGE_SIZE']))})
+		else:
+			return Response({'error':'Not a valid namespace/ontology pair'},status=500)
     # def list(self, request, *args, **kwargs):
     #     queryset = self.filter_queryset(self.get_queryset())
     #
