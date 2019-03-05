@@ -3,7 +3,7 @@
 # @Email:  mlhale@unomaha.edu
 # @Filename: loadterms.py
 # @Last modified by:   mlhale
-# @Last modified time: 2019-03-05T11:10:24-06:00
+# @Last modified time: 2019-03-05T11:28:45-06:00
 # @License: Funset is a web-based BIOI tool for visualizing genetic pathway information. This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version. This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details. You should have received a copy of the GNU General Public License along with this program. If not, see http://www.gnu.org/licenses/.
 # @Copyright: Copyright (C) 2017 Matthew L. Hale, Dario Ghersi, Ishwor Thapa
 
@@ -13,6 +13,7 @@ import os
 import sys
 import getopt
 import django
+import datetime
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "pathway_viz_backend.settings")
 
 django.setup()
@@ -150,7 +151,7 @@ if __name__ == '__main__':
         oboDict = parseGO(oboData)
         print '...done'
         print 'Creating New ontology:', ontology_name
-        ontology= Ontology(name=ontology_name, description=ontology_desc)
+        ontology= Ontology(name=ontology_name, created=datetime.datetime.now() description=ontology_desc)
         ontology.save()
         print '...done'
         print 'Adding terms to',ontology_name,'...'
