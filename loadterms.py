@@ -3,7 +3,7 @@
 # @Email:  mlhale@unomaha.edu
 # @Filename: loadterms.py
 # @Last modified by:   mlhale
-# @Last modified time: 2019-03-05T11:29:49-06:00
+# @Last modified time: 2019-03-05T12:52:55-06:00
 # @License: Funset is a web-based BIOI tool for visualizing genetic pathway information. This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version. This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details. You should have received a copy of the GNU General Public License along with this program. If not, see http://www.gnu.org/licenses/.
 # @Copyright: Copyright (C) 2017 Matthew L. Hale, Dario Ghersi, Ishwor Thapa
 
@@ -20,6 +20,10 @@ django.setup()
 
 # your imports, e.g. Django models
 from api.models import *
+from multiprocessing import Pool, Lock, Manager, Process
+from functools import partial
+from django import db
+import time
 
 def help():
     print 'Usage: loadterms.py -i <inputfile> \n'
@@ -120,6 +124,16 @@ def parseGO(goData, regulatoryLinks=False):
 # MAIN PROGRAM                                                        #
 #######################################################################
 
+def loadTermParentsWorker(lock, data):
+    db.connection.close()
+    key, term, ontology = data
+    record = Term.objects.get(ontology=ontology, termid=key)
+    for parent in term[3]:
+        # find parent in Django ORM and link
+        parent_record = Term.objects.get(ontology=ontology, termid=parent)
+        record.parents.add(parent_record)
+
+
 if __name__ == '__main__':
     inputfile = ''
     ontology_name = ''
@@ -160,13 +174,20 @@ if __name__ == '__main__':
                             description=term[2], namespace=term[1], semanticdissimilarityx=0, semanticdissimilarityy=0 )
             newterm.save()
         print '...done'
-        print 'Forming many-to-many mapping...'
-        for key, term in oboDict.items():
-            record = Term.objects.get(ontology=ontology, termid=key)
-            for parent in term[3]:
-                # find parent in Django ORM and link
-                parent_record = Term.objects.get(ontology=ontology, termid=parent)
-                record.parents.add(parent_record)
+        print 'Forming many-to-many mapping from term to parents (multithreaded)...'
+        
+        #Multi-threaded loader to update parent data
+        load_start = time.time()
+        manager = Manager()
+        lock = manager.Lock()
+        taskworker = partial(loadTermParentsWorker, lock)
+        pool = Pool(8)
+        tokens = [(key, term, ontology) for key, term in oboDict.items()]
+
+        pool.map(taskworker, tokens)
+        pool.close()
+        pool.join()
+        print "time to loadparents: %s secs" % (time.time()-load_start)
         print '...done'
     else:
         print 'Invalid parameters', inputfile, ontology_name
