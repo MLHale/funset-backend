@@ -3,7 +3,7 @@
 # @Email:  mlhale@unomaha.edu
 # @Filename: loadterms.py
 # @Last modified by:   matthale
-# @Last modified time: 2018-03-08T13:57:33-06:00
+# @Last modified time: 2019-02-26T14:06:22-06:00
 # @License: Funset is a web-based BIOI tool for visualizing genetic pathway information. This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version. This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details. You should have received a copy of the GNU General Public License along with this program. If not, see http://www.gnu.org/licenses/.
 # @Copyright: Copyright (C) 2017 Matthew L. Hale, Dario Ghersi, Ishwor Thapa
 
@@ -14,6 +14,7 @@ import sys
 import getopt
 import pronto
 import django
+from django.utils import timezone
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "pathway_viz_backend.settings")
 
 django.setup()
@@ -60,7 +61,7 @@ if __name__ == '__main__':
         print '...done'
         print ont.__len__(), 'Terms Loaded.'
         print 'Creating New ontology:', ontology_name
-        ontology= Ontology(name=ontology_name, description=ontology_desc)
+        ontology= Ontology(created=timezone.now(), name=ontology_name, description=ontology_desc)
         ontology.save()
         print '...done'
         print 'Adding terms to',ontology_name,'...'
@@ -84,10 +85,10 @@ if __name__ == '__main__':
         for term in ont:
             if term.parents:
                 record = Term.objects.get(ontology=ontology, termid=term.id)
-            for parent in term.parents:
-                # find parent in Django ORM and link
-                parent_record = Term.objects.get(ontology=ontology, termid=parent.id)
-                record.parents.add(parent_record)
+                for parent in term.parents:
+                    # find parent in Django ORM and link
+                    parent_record = Term.objects.get(ontology=ontology, termid=parent.id)
+                    record.parents.add(parent_record)
         print '...done'
     else:
         print 'Invalid parameters', inputfile, ontology_name
