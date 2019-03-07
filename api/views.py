@@ -3,7 +3,7 @@
 # @Email:  mlhale@unomaha.edu
 # @Filename: views.py
 # @Last modified by:   matthale
-# @Last modified time: 2019-03-05T23:37:58-06:00
+# @Last modified time: 2019-03-07T12:39:08-06:00
 # @License: Funset is a web-based BIOI tool for visualizing genetic pathway information. This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version. This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details. You should have received a copy of the GNU General Public License along with this program. If not, see http://www.gnu.org/licenses/.
 # @Copyright: Copyright (C) 2017 Matthew L. Hale, Dario Ghersi, Ishwor Thapa
 
@@ -380,7 +380,7 @@ class RunViewSet(viewsets.ModelViewSet):
 
             fun_sim_start = time.time()
             #invoke funSim util to compute semantic similarity
-            subprocess.call(['/GOUtil/./funSim', '-a', annotation_file_name, '-e', edgelist_file_name, '-o', sim_outputfile_name, '-t',"Lin", '-f', enrich_outputfile_name])
+            subprocess.call(['/GOUtil/./funSim', '-a', annotation_file_name, '-e', edgelist_file_name, '-o', sim_outputfile_name, '-t',"AIC", '-f', enrich_outputfile_name])
             print "FunSim run time %s" % (time.time()-fun_sim_start)
 
 
